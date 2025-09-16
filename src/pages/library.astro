@@ -1,0 +1,96 @@
+---
+import "../styles/global.css";
+
+// Récupération côté serveur (SSG/SSR)
+const res = await fetch(
+    `${import.meta.env.PB_URL}/api/collections/svgs/records?perPage=200`,
+    {
+        headers: {
+            // 'Authorization': import.meta.env.PB_ADMIN_TOKEN
+        },
+    },
+);
+const data = await res.json();
+const items = data?.items ?? [];
+---
+
+<html lang="fr">
+    <head>
+        <meta charset="utf-8" />
+        <title>Bibliothèque SVG</title>
+    </head>
+    <body class="min-h-screen bg-base-200 p-6">
+        <main class="container mx-auto">
+            <h1 class="text-2xl font-semibold mb-6">Bibliothèque</h1>
+
+            {
+                items.length === 0 ? (
+                    <p class="opacity-70">
+                        Aucun SVG enregistré pour l’instant.
+                    </p>
+                ) : (
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {items.map((it) => (
+                            <div class="card bg-base-100 border border-base-300 shadow-sm">
+                                <div class="card-body gap-3">
+                                    <h2 class="card-title text-base">
+                                        {it.name}
+                                    </h2>
+                                    <div
+                                        class="bg-base-200 rounded-box p-3 h-64 overflow-auto"
+                                        set:html={it.svg}
+                                    />
+                                    <div class="join">
+                                        <button
+                                            class="btn btn-outline btn-sm join-item"
+                                            data-svg={it.svg}
+                                        >
+                                            Copier
+                                        </button>
+                                        <button
+                                            class="btn btn-outline btn-sm join-item"
+                                            data-svg={it.svg}
+                                            data-name={
+                                                it.name || "illustration"
+                                            }
+                                        >
+                                            Télécharger
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )
+            }
+        </main>
+
+        <!-- Script côté client -->
+        <script>
+            document.addEventListener("click", (e) => {
+                const target = e.target.closest("button");
+                if (!target) return;
+
+                const svg = target.getAttribute("data-svg");
+                if (target.textContent.includes("Copier")) {
+                    navigator.clipboard.writeText(svg).then(() => {
+                        target.textContent = "Copié !";
+                        setTimeout(() => (target.textContent = "Copier"), 1500);
+                    });
+                }
+                if (target.textContent.includes("Télécharger")) {
+                    const name = target.getAttribute("data-name");
+                    const blob = new Blob([svg], { type: "image/svg+xml" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `${name}.svg`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                }
+            });
+        </script>
+    </body>
+</html>

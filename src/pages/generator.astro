@@ -1,0 +1,250 @@
+---
+const title = "Générateur SVG";
+import "../styles/global.css";
+---
+
+<html lang="fr">
+    <head>
+        <meta charset="utf-8" />
+        <title>{title}</title>
+    </head>
+    <body class="min-h-screen bg-base-200 flex items-center justify-center p-6">
+        <main
+            class="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+            <!-- DIV 1 : Prompt utilisateur -->
+            <div class="card bg-base-100 shadow-md border border-base-300">
+                <div class="card-body">
+                    <h2 class="card-title">Prompt</h2>
+                    <textarea
+                        id="user-prompt"
+                        class="textarea textarea-bordered w-full h-40"
+                        placeholder="Décris l’illustration que tu veux générer..."
+                    ></textarea>
+                    <button
+                        id="generate-button"
+                        class="btn btn-primary w-full mt-4"
+                    >
+                        Générer
+                    </button>
+                </div>
+            </div>
+
+            <!-- DIV 2 : Code généré -->
+            <div class="card bg-base-100 shadow-md border border-base-300">
+                <div class="card-body">
+                    <h2 class="card-title">Code SVG</h2>
+                    <pre
+                        class="mockup-code w-full h-80 overflow-auto">
+            <!-- IMPORTANT : balise non auto-fermée -->
+            <code id="svg-output" class="text-xs" />
+          </pre>
+                    <label class="form-control w-full mt-4">
+                        <span class="label-text">Nom du SVG</span>
+                        <input id="svg-name" class="input input-bordered w-full" placeholder="Mon illustration" />
+                    </label>
+                    <button id="save-button" type="button" class="btn btn-secondary mt-2">
+                        Enregistrer dans la biblioth�que
+                    </button>
+                    <p id="save-status" class="text-sm opacity-70 mt-2"></p>
+                </div>
+            </div>
+
+            <!-- DIV 3 : Aperçu SVG -->
+            <div class="card bg-base-100 shadow-md border border-base-300">
+                <div class="card-body">
+                    <h2 class="card-title">Aperçu</h2>
+                    <div
+                        id="svg-container"
+                        class="w-full h-80 flex items-center justify-center bg-base-200 rounded-box overflow-auto"
+                    >
+                        <span class="text-base-content/50"
+                            >Ton SVG apparaîtra ici</span
+                        >
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Script côté client -->
+        <script>
+            //@ts-nocheck
+            const promptElement = document.getElementById("user-prompt");
+            const svgContainer = document.getElementById("svg-container");
+            const svgOutput = document.getElementById("svg-output");
+            const generateButton = document.getElementById("generate-button");
+            const svgNameInput = document.getElementById("svg-name");
+            const saveButton = document.getElementById("save-button");
+            const saveStatus = document.getElementById("save-status");
+            let lastGeneratedSvg = "";
+
+            async function generateSVG(prompt) {
+                console.log("Generating SVG for prompt:", prompt);
+                const res = await fetch("/api/generateSVG", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt }),
+                });
+                const data = await res.json();
+                return data.svg;
+            }
+
+            async function handleSubmit() {
+                const prompt = promptElement
+                    ? (promptElement.value || "").trim()
+                    : "";
+
+                if (!prompt) {
+                    if (svgOutput) {
+                        svgOutput.textContent = "Veuillez entrer un prompt.";
+                    }
+                    if (svgContainer) {
+                        svgContainer.innerHTML =
+                            '<span class="text-base-content/60">Aucun prompt fourni.</span>';
+                    }
+                    lastGeneratedSvg = "";
+                    if (saveButton) saveButton.disabled = true;
+                    if (saveStatus) saveStatus.textContent = "";
+                    return;
+                }
+
+                lastGeneratedSvg = "";
+                if (saveButton) saveButton.disabled = true;
+                if (saveStatus) saveStatus.textContent = "";
+
+                if (svgContainer) {
+                    svgContainer.innerHTML =
+                        '<span class="loading loading-ring loading-xl"></span>';
+                }
+                if (generateButton) {
+                    generateButton.disabled = true;
+                }
+
+                try {
+                    const svgCode = await generateSVG(prompt);
+                    console.log("svgCode:", svgCode);
+                    lastGeneratedSvg = svgCode || "";
+
+                    if (svgOutput) {
+                        svgOutput.textContent =
+                            lastGeneratedSvg || "Aucun SVG recu.";
+                    }
+                    if (svgContainer) {
+                        svgContainer.innerHTML =
+                            lastGeneratedSvg ||
+                            '<span class="text-base-content/60">Aucun SVG recu.</span>';
+                    }
+                    if (saveButton) {
+                        saveButton.disabled = !lastGeneratedSvg;
+                    }
+                } catch (e) {
+                    console.error(e);
+                    lastGeneratedSvg = "";
+                    if (svgOutput) {
+                        svgOutput.textContent =
+                            "Erreur lors de la generation.";
+                    }
+                    if (svgContainer) {
+                        svgContainer.innerHTML =
+                            '<span class="text-error">Erreur de generation</span>';
+                    }
+                    if (saveStatus) {
+                        saveStatus.textContent =
+                            "Impossible de generer le SVG.";
+                    }
+                } finally {
+                    if (generateButton) {
+                        generateButton.disabled = false;
+                    }
+                }
+            }
+
+            async function handleSave() {
+                if (!saveButton) return;
+
+                const name = svgNameInput
+                    ? (svgNameInput.value || "").trim()
+                    : "";
+
+                if (!lastGeneratedSvg) {
+                    if (saveStatus) {
+                        saveStatus.textContent =
+                            "Generez un SVG avant de l enregistrer.";
+                    }
+                    return;
+                }
+
+                if (!name) {
+                    if (saveStatus) {
+                        saveStatus.textContent = "Merci de saisir un nom.";
+                    }
+                    if (svgNameInput) {
+                        svgNameInput.focus();
+                    }
+                    return;
+                }
+
+                saveButton.disabled = true;
+                if (saveStatus) {
+                    saveStatus.textContent = "Enregistrement...";
+                }
+
+                try {
+                    const res = await fetch("/api/saveSVG", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name,
+                            svg: lastGeneratedSvg,
+                        }),
+                    });
+
+                    let data = null;
+                    try {
+                        data = await res.json();
+                    } catch (err) {
+                        console.warn("No JSON response for saveSVG", err);
+                    }
+
+                    if (!res.ok || !data || !data.ok) {
+                        const errorMessage =
+                            (data && data.error) ||
+                            "Erreur lors de l enregistrement.";
+                        throw new Error(errorMessage);
+                    }
+
+                    if (saveStatus) {
+                        saveStatus.textContent = "SVG enregistre !";
+                    }
+                    if (svgNameInput) {
+                        svgNameInput.value = "";
+                    }
+                } catch (error) {
+                    console.error(error);
+                    const message =
+                        (error && error.message) ||
+                        "Enregistrement impossible.";
+                    if (saveStatus) {
+                        saveStatus.textContent = "Erreur : " + message;
+                    }
+                } finally {
+                    if (saveButton) {
+                        saveButton.disabled = !lastGeneratedSvg;
+                    }
+                }
+            }
+
+            if (generateButton) {
+                generateButton.addEventListener("click", handleSubmit);
+            }
+
+            if (saveButton) {
+                saveButton.addEventListener("click", handleSave);
+                saveButton.disabled = true;
+            }
+        </script>
+    </body>
+</html>
+
+
+
