@@ -1,5 +1,5 @@
 ---
-const title = "Générateur SVG";
+const title = "Generateur SVG";
 import "../styles/global.css";
 ---
 
@@ -19,54 +19,61 @@ import "../styles/global.css";
                     <textarea
                         id="user-prompt"
                         class="textarea textarea-bordered w-full h-40"
-                        placeholder="Décris l’illustration que tu veux générer..."
+                        placeholder="Decris l'illustration que tu veux generer..."
                     ></textarea>
                     <button
                         id="generate-button"
                         class="btn btn-primary w-full mt-4"
                     >
-                        Générer
+                        Generer
                     </button>
                 </div>
             </div>
 
-            <!-- DIV 2 : Code généré -->
+            <!-- DIV 2 : Code genere -->
             <div class="card bg-base-100 shadow-md border border-base-300">
                 <div class="card-body">
                     <h2 class="card-title">Code SVG</h2>
-                    <pre
-                        class="mockup-code w-full h-80 overflow-auto">
-            <!-- IMPORTANT : balise non auto-fermée -->
-            <code id="svg-output" class="text-xs" />
-          </pre>
+                    <pre class="mockup-code w-full h-80 overflow-auto">
+                        <!-- IMPORTANT : balise non auto-fermee -->
+                        <code id="svg-output" class="text-xs" />
+                    </pre>
                     <label class="form-control w-full mt-4">
                         <span class="label-text">Nom du SVG</span>
-                        <input id="svg-name" class="input input-bordered w-full" placeholder="Mon illustration" />
+                        <input
+                            id="svg-name"
+                            class="input input-bordered w-full"
+                            placeholder="Mon illustration"
+                        />
                     </label>
-                    <button id="save-button" type="button" class="btn btn-secondary mt-2">
-                        Enregistrer dans la biblioth�que
+                    <button
+                        id="save-button"
+                        type="button"
+                        class="btn btn-secondary mt-2"
+                    >
+                        Enregistrer dans la bibliotheque
                     </button>
                     <p id="save-status" class="text-sm opacity-70 mt-2"></p>
                 </div>
             </div>
 
-            <!-- DIV 3 : Aperçu SVG -->
+            <!-- DIV 3 : Apercu SVG -->
             <div class="card bg-base-100 shadow-md border border-base-300">
                 <div class="card-body">
-                    <h2 class="card-title">Aperçu</h2>
+                    <h2 class="card-title">Apercu</h2>
                     <div
                         id="svg-container"
                         class="w-full h-80 flex items-center justify-center bg-base-200 rounded-box overflow-auto"
                     >
-                        <span class="text-base-content/50"
-                            >Ton SVG apparaîtra ici</span
-                        >
+                        <span class="text-base-content/50">
+                            Ton SVG apparaitra ici
+                        </span>
                     </div>
                 </div>
             </div>
         </main>
 
-        <!-- Script côté client -->
+        <!-- Script cote client -->
         <script>
             //@ts-nocheck
             const promptElement = document.getElementById("user-prompt");
@@ -76,23 +83,33 @@ import "../styles/global.css";
             const svgNameInput = document.getElementById("svg-name");
             const saveButton = document.getElementById("save-button");
             const saveStatus = document.getElementById("save-status");
+            const promptList = [];
             let lastGeneratedSvg = "";
 
-            async function generateSVG(prompt) {
-                console.log("Generating SVG for prompt:", prompt);
+            async function generateSVG(messages) {
+                console.log("Generating SVG for messages:", messages);
                 const res = await fetch("/api/generateSVG", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ prompt }),
+                    body: JSON.stringify({ messages }),
                 });
+
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`Request failed: ${res.status} ${errorText}`);
+                }
+
                 const data = await res.json();
                 return data.svg;
             }
 
             async function handleSubmit() {
-                const prompt = promptElement
-                    ? (promptElement.value || "").trim()
-                    : "";
+                let prompt = "";
+                let aiResponse = { role: "assistant", content: "" };
+
+                if (promptElement) {
+                    prompt = (promptElement.value || "").trim();
+                }
 
                 if (!prompt) {
                     if (svgOutput) {
@@ -105,8 +122,12 @@ import "../styles/global.css";
                     lastGeneratedSvg = "";
                     if (saveButton) saveButton.disabled = true;
                     if (saveStatus) saveStatus.textContent = "";
+                    promptList.length = 0;
                     return;
                 }
+
+                promptList.length = 0;
+                promptList.push({ role: "user", content: prompt });
 
                 lastGeneratedSvg = "";
                 if (saveButton) saveButton.disabled = true;
@@ -121,9 +142,17 @@ import "../styles/global.css";
                 }
 
                 try {
-                    const svgCode = await generateSVG(prompt);
-                    console.log("svgCode:", svgCode);
-                    lastGeneratedSvg = svgCode || "";
+                    aiResponse = await generateSVG(promptList);
+                    if (!aiResponse || typeof aiResponse !== "object") {
+                        aiResponse = { role: "assistant", content: "" };
+                    }
+
+                    const svgMatch = aiResponse.content?.match(/<svg[\s\S]*?<\/svg>/i);
+                    aiResponse.content = svgMatch ? svgMatch[0] : "";
+                    console.log("svgCode:", aiResponse.content);
+
+                    promptList.push(aiResponse);
+                    lastGeneratedSvg = aiResponse.content || "";
 
                     if (svgOutput) {
                         svgOutput.textContent =
@@ -137,12 +166,11 @@ import "../styles/global.css";
                     if (saveButton) {
                         saveButton.disabled = !lastGeneratedSvg;
                     }
-                } catch (e) {
-                    console.error(e);
+                } catch (error) {
+                    console.error(error);
                     lastGeneratedSvg = "";
                     if (svgOutput) {
-                        svgOutput.textContent =
-                            "Erreur lors de la generation.";
+                        svgOutput.textContent = "Erreur lors de la generation.";
                     }
                     if (svgContainer) {
                         svgContainer.innerHTML =
@@ -169,7 +197,7 @@ import "../styles/global.css";
                 if (!lastGeneratedSvg) {
                     if (saveStatus) {
                         saveStatus.textContent =
-                            "Generez un SVG avant de l enregistrer.";
+                            "Generez un SVG avant de l'enregistrer.";
                     }
                     return;
                 }
@@ -209,7 +237,7 @@ import "../styles/global.css";
                     if (!res.ok || !data || !data.ok) {
                         const errorMessage =
                             (data && data.error) ||
-                            "Erreur lors de l enregistrement.";
+                            "Erreur lors de l'enregistrement.";
                         throw new Error(errorMessage);
                     }
 
@@ -245,6 +273,3 @@ import "../styles/global.css";
         </script>
     </body>
 </html>
-
-
-
