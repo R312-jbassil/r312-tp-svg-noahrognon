@@ -7,18 +7,18 @@ export async function POST({ request }) {
     try {
         payload = await request.json();
     } catch (error) {
-        console.error("saveSVG: invalid JSON", error);
+        console.error("updateSVG: invalid JSON", error);
         return new Response(JSON.stringify({ success: false, error: "Invalid JSON payload" }), {
             status: 400,
             headers: { "Content-Type": "application/json" },
         });
     }
 
-    const { name, code_svg, chat_history } = payload ?? {};
+    const { id, name, code_svg, chat_history } = payload ?? {};
 
-    if (!name || !code_svg) {
+    if (!id) {
         return new Response(
-            JSON.stringify({ success: false, error: "Missing name or code_svg" }),
+            JSON.stringify({ success: false, error: "Missing record id" }),
             {
                 status: 400,
                 headers: { "Content-Type": "application/json" },
@@ -26,23 +26,20 @@ export async function POST({ request }) {
         );
     }
 
-    const data = {
-        name,
-        code_svg,
-        chat_history: chat_history ?? "[]",
-    };
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (code_svg !== undefined) updateData.code_svg = code_svg;
+    if (chat_history !== undefined) updateData.chat_history = chat_history;
 
-    console.log("Received data to save:", data);
+    console.log("Updating SVG:", { id, updateData });
 
     try {
-        const record = await pb.collection(Collections.Svg).create(data);
-        console.log("SVG saved with ID:", record.id);
-
+        const record = await pb.collection(Collections.Svg).update(id, updateData);
         return new Response(JSON.stringify({ success: true, id: record.id }), {
             headers: { "Content-Type": "application/json" },
         });
     } catch (error) {
-        console.error("Error saving SVG:", error);
+        console.error("Error updating SVG:", error);
         return new Response(
             JSON.stringify({ success: false, error: error?.message || "PocketBase error" }),
             {

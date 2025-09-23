@@ -1,4 +1,4 @@
----
+﻿---
 const title = "Generateur SVG";
 import "../styles/global.css";
 ---
@@ -21,12 +21,20 @@ import "../styles/global.css";
                         class="textarea textarea-bordered w-full h-40"
                         placeholder="Decris l'illustration que tu veux generer..."
                     ></textarea>
-                    <button
-                        id="generate-button"
-                        class="btn btn-primary w-full mt-4"
-                    >
-                        Generer
-                    </button>
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        <button
+                            id="generate-button"
+                            class="btn btn-primary flex-1"
+                        >
+                            Generer
+                        </button>
+                        <button
+                            id="edit-button"
+                            class="btn btn-secondary flex-1"
+                        >
+                            Edit
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -34,7 +42,8 @@ import "../styles/global.css";
             <div class="card bg-base-100 shadow-md border border-base-300">
                 <div class="card-body">
                     <h2 class="card-title">Code SVG</h2>
-                    <pre class="mockup-code w-full h-80 overflow-auto">
+                    <pre
+                        class="mockup-code w-full h-80 overflow-auto">
                         <!-- IMPORTANT : balise non auto-fermee -->
                         <code id="svg-output" class="text-xs" />
                     </pre>
@@ -53,6 +62,9 @@ import "../styles/global.css";
                     >
                         Enregistrer dans la bibliotheque
                     </button>
+                    <a class="btn btn-primary" href="/gallery"
+                        >Gallery</a
+                    >
                     <p id="save-status" class="text-sm opacity-70 mt-2"></p>
                 </div>
             </div>
@@ -80,11 +92,14 @@ import "../styles/global.css";
             const svgContainer = document.getElementById("svg-container");
             const svgOutput = document.getElementById("svg-output");
             const generateButton = document.getElementById("generate-button");
+            const editButton = document.getElementById("edit-button");
             const svgNameInput = document.getElementById("svg-name");
             const saveButton = document.getElementById("save-button");
             const saveStatus = document.getElementById("save-status");
             const promptList = [];
             let lastGeneratedSvg = "";
+            const loadingSpinner =
+                '<span class="loading loading-ring loading-xl"></span>';
 
             async function generateSVG(messages) {
                 console.log("Generating SVG for messages:", messages);
@@ -96,11 +111,59 @@ import "../styles/global.css";
 
                 if (!res.ok) {
                     const errorText = await res.text();
-                    throw new Error(`Request failed: ${res.status} ${errorText}`);
+                    throw new Error(
+                        `Request failed: ${res.status} ${errorText}`,
+                    );
                 }
 
                 const data = await res.json();
                 return data.svg;
+            }
+
+            function resetUiForRequest() {
+                lastGeneratedSvg = "";
+                if (saveButton) saveButton.disabled = true;
+                if (saveStatus) saveStatus.textContent = "";
+
+                if (svgOutput) {
+                    svgOutput.textContent = "";
+                }
+                if (svgContainer) {
+                    svgContainer.innerHTML = loadingSpinner;
+                }
+                if (generateButton) {
+                    generateButton.disabled = true;
+                }
+                if (editButton) {
+                    editButton.disabled = true;
+                }
+            }
+
+            function restoreUiAfterRequest() {
+                if (generateButton) {
+                    generateButton.disabled = false;
+                }
+                if (editButton) {
+                    editButton.disabled = !(
+                        promptList.length > 0 && lastGeneratedSvg
+                    );
+                }
+                if (saveButton) {
+                    saveButton.disabled = !lastGeneratedSvg;
+                }
+            }
+
+            function displaySvg(svgCode) {
+                lastGeneratedSvg = svgCode || "";
+                if (svgOutput) {
+                    svgOutput.textContent =
+                        lastGeneratedSvg || "Aucun SVG recu.";
+                }
+                if (svgContainer) {
+                    svgContainer.innerHTML =
+                        lastGeneratedSvg ||
+                        '<span class="text-base-content/60">Aucun SVG recu.</span>';
+                }
             }
 
             async function handleSubmit() {
@@ -120,26 +183,16 @@ import "../styles/global.css";
                             '<span class="text-base-content/60">Aucun prompt fourni.</span>';
                     }
                     lastGeneratedSvg = "";
+                    promptList.length = 0;
                     if (saveButton) saveButton.disabled = true;
                     if (saveStatus) saveStatus.textContent = "";
-                    promptList.length = 0;
                     return;
                 }
 
                 promptList.length = 0;
                 promptList.push({ role: "user", content: prompt });
 
-                lastGeneratedSvg = "";
-                if (saveButton) saveButton.disabled = true;
-                if (saveStatus) saveStatus.textContent = "";
-
-                if (svgContainer) {
-                    svgContainer.innerHTML =
-                        '<span class="loading loading-ring loading-xl"></span>';
-                }
-                if (generateButton) {
-                    generateButton.disabled = true;
-                }
+                resetUiForRequest();
 
                 try {
                     aiResponse = await generateSVG(promptList);
@@ -147,28 +200,16 @@ import "../styles/global.css";
                         aiResponse = { role: "assistant", content: "" };
                     }
 
-                    const svgMatch = aiResponse.content?.match(/<svg[\s\S]*?<\/svg>/i);
+                    const svgMatch =
+                        aiResponse.content?.match(/<svg[\s\S]*?<\/svg>/i);
                     aiResponse.content = svgMatch ? svgMatch[0] : "";
                     console.log("svgCode:", aiResponse.content);
 
                     promptList.push(aiResponse);
-                    lastGeneratedSvg = aiResponse.content || "";
-
-                    if (svgOutput) {
-                        svgOutput.textContent =
-                            lastGeneratedSvg || "Aucun SVG recu.";
-                    }
-                    if (svgContainer) {
-                        svgContainer.innerHTML =
-                            lastGeneratedSvg ||
-                            '<span class="text-base-content/60">Aucun SVG recu.</span>';
-                    }
-                    if (saveButton) {
-                        saveButton.disabled = !lastGeneratedSvg;
-                    }
+                    displaySvg(aiResponse.content);
                 } catch (error) {
                     console.error(error);
-                    lastGeneratedSvg = "";
+                    displaySvg("");
                     if (svgOutput) {
                         svgOutput.textContent = "Erreur lors de la generation.";
                     }
@@ -181,10 +222,66 @@ import "../styles/global.css";
                             "Impossible de generer le SVG.";
                     }
                 } finally {
-                    if (generateButton) {
-                        generateButton.disabled = false;
-                    }
+                    restoreUiAfterRequest();
                 }
+            }
+
+            async function handleEdit() {
+                let prompt = "";
+                let aiResponse = { role: "assistant", content: "" };
+
+                if (promptElement) {
+                    prompt = (promptElement.value || "").trim();
+                }
+
+                if (!prompt) {
+                    console.warn("Prompt vide pour l'edition");
+                    return;
+                }
+
+                promptList.push({ role: "user", content: prompt });
+
+                if (svgContainer) {
+                    svgContainer.innerHTML += loadingSpinner;
+                }
+                if (generateButton) {
+                    generateButton.disabled = true;
+                }
+                if (editButton) {
+                    editButton.disabled = true;
+                }
+
+                try {
+                    aiResponse = await generateSVG(promptList);
+                    if (!aiResponse || typeof aiResponse !== "object") {
+                        aiResponse = { role: "assistant", content: "" };
+                    }
+
+                    const svgMatch =
+                        aiResponse.content?.match(/<svg[\s\S]*?<\/svg>/i);
+                    aiResponse.content = svgMatch ? svgMatch[0] : "";
+                    console.log("svgCode:", aiResponse.content);
+
+                    promptList.push(aiResponse);
+                    displaySvg(aiResponse.content);
+                } catch (error) {
+                    console.error(error);
+                    if (saveStatus) {
+                        saveStatus.textContent = "Impossible d'editer le SVG.";
+                    }
+                } finally {
+                    restoreUiAfterRequest();
+                    console.log("Historique des prompts:", promptList);
+                }
+            }
+
+            async function saveSvg(params) {
+                const res = await fetch("/api/saveSVG", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(params),
+                });
+                return res.json();
             }
 
             async function handleSave() {
@@ -218,57 +315,42 @@ import "../styles/global.css";
                 }
 
                 try {
-                    const res = await fetch("/api/saveSVG", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            name,
-                            svg: lastGeneratedSvg,
-                        }),
+                    const chatHistory = JSON.stringify(promptList);
+                    const response = await saveSvg({
+                        name,
+                        code_svg: lastGeneratedSvg,
+                        chat_history: chatHistory,
                     });
 
-                    let data = null;
-                    try {
-                        data = await res.json();
-                    } catch (err) {
-                        console.warn("No JSON response for saveSVG", err);
-                    }
-
-                    if (!res.ok || !data || !data.ok) {
-                        const errorMessage =
-                            (data && data.error) ||
-                            "Erreur lors de l'enregistrement.";
-                        throw new Error(errorMessage);
-                    }
-
-                    if (saveStatus) {
-                        saveStatus.textContent = "SVG enregistre !";
-                    }
-                    if (svgNameInput) {
-                        svgNameInput.value = "";
+                    if (response?.success) {
+                        if (saveStatus) {
+                            saveStatus.textContent = "SVG enregistre !";
+                        }
+                    } else {
+                        throw new Error(
+                            response?.error || "Erreur lors de la sauvegarde",
+                        );
                     }
                 } catch (error) {
                     console.error(error);
-                    const message =
-                        (error && error.message) ||
-                        "Enregistrement impossible.";
                     if (saveStatus) {
-                        saveStatus.textContent = "Erreur : " + message;
+                        saveStatus.textContent =
+                            "Erreur : " +
+                            (error?.message || "Enregistrement impossible.");
                     }
                 } finally {
-                    if (saveButton) {
-                        saveButton.disabled = !lastGeneratedSvg;
-                    }
+                    saveButton.disabled = !lastGeneratedSvg;
                 }
             }
 
-            if (generateButton) {
-                generateButton.addEventListener("click", handleSubmit);
-            }
-
+            generateButton?.addEventListener("click", handleSubmit);
+            editButton?.addEventListener("click", handleEdit);
+            saveButton?.addEventListener("click", handleSave);
             if (saveButton) {
-                saveButton.addEventListener("click", handleSave);
                 saveButton.disabled = true;
+            }
+            if (editButton) {
+                editButton.disabled = true;
             }
         </script>
     </body>

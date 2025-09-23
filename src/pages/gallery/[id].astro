@@ -1,0 +1,273 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import pb from "../../utils/pb";
+import { Collections, type SvgRecord, type ChatMessage } from "../../utils/pocketbase-types";
+
+const id = Astro.params.id;
+let svg: SvgRecord | null = null;
+let chatHistory: ChatMessage[] = [];
+let loadError = "";
+
+if (id) {
+    try {
+        const record = await pb.collection(Collections.Svg).getOne(id);
+        svg = record as SvgRecord;
+
+        const rawHistory = record?.chat_history;
+        if (typeof rawHistory === "string") {
+            try {
+                const parsed = JSON.parse(rawHistory);
+                if (Array.isArray(parsed)) {
+                    chatHistory = parsed as ChatMessage[];
+                }
+            } catch (error) {
+                console.warn("Failed to parse chat history", error);
+            }
+        } else if (Array.isArray(rawHistory)) {
+            chatHistory = rawHistory as ChatMessage[];
+        }
+    } catch (error) {
+        console.error("Failed to load SVG record", error);
+        loadError = "Impossible de charger ce SVG.";
+    }
+} else {
+    loadError = "Identifiant manquant.";
+}
+
+const chatHistoryJson = JSON.stringify(chatHistory);
+const svgMarkup = svg?.code_svg || "";
+---
+
+<Layout>
+    <section class="max-w-6xl mx-auto px-6 py-10 space-y-6">
+        <header class="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+                <h1 class="text-3xl font-bold">Edition du SVG</h1>
+                <p class="text-base-content/70">ID: {svg?.id}</p>
+            </div>
+            <div class="flex gap-2">
+                <a class="btn" href="/gallery">Retour a la galerie</a>
+                <a class="btn btn-primary" href="/generator">Generer un nouveau SVG</a>
+            </div>
+        </header>
+
+        {loadError ? (
+            <div class="alert alert-error">{loadError}</div>
+        ) : (
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[28rem]">
+                <div class="card bg-base-100 shadow border border-base-300">
+                    <div class="card-body space-y-4">
+                        <h2 class="card-title">Apercu</h2>
+                        <div
+                            id="svg-preview"
+                            class="bg-base-200 rounded-box p-4 min-h-[24rem] overflow-auto"
+                            set:html={svgMarkup}
+                        ></div>
+                    </div>
+                </div>
+
+                <div class="card bg-base-100 shadow border border-base-300 relative">
+                    <div class="card-body pb-24">
+                        <h2 class="card-title">Historique de chat</h2>
+                        <div id="chat-history" class="flex flex-col gap-4 w-full mb-4 overflow-y-auto flex-grow">
+                            {
+                                chatHistory.length > 0 ? (
+                                    chatHistory.map((msg) => (
+                                        <div class={`chat ${msg.role === "user" ? "chat-start" : "chat-end"}`}>
+                                            <div class={`chat-bubble ${msg.role === "user" ? "bg-primary text-primary-content" : "bg-secondary text-secondary-content"}`}>
+                                                <pre>{msg.content}</pre>
+                                            </div>
+                                            <div class="chat-footer opacity-60 text-xs mt-1">{msg.role}</div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <span class="text-error">Aucun historique de chat.</span>
+                                )
+                            }
+                        </div>
+                    </div>
+
+                    <form
+                        id="input-prompt-form"
+                        class="flex flex-col gap-2 w-full absolute bottom-0 left-0 right-0 bg-base-300 p-4"
+                        method="post"
+                        autocomplete="off"
+                    >
+                        <input type="hidden" name="history" value={chatHistoryJson} />
+                        <input type="hidden" name="id" value={svg?.id} />
+                        <input type="hidden" name="currentSvg" value={svgMarkup} />
+                        <div class="flex items-center gap-2">
+                            <input
+                                id="prompt-input"
+                                name="editPrompt"
+                                type="text"
+                                class="input flex-grow"
+                                placeholder="Entrez un prompt pour modifier le SVG..."
+                            />
+                            <button class="btn btn-primary" type="submit">Edit</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        )}
+    </section>
+
+    <script>
+        //@ts-nocheck
+        (function () {
+            const form = document.getElementById("input-prompt-form");
+            if (!form) {
+                return;
+            }
+
+            const svgPreview = document.getElementById("svg-preview");
+            const chatHistoryElement = document.getElementById("chat-history");
+            const promptInput = document.getElementById("prompt-input");
+            const hiddenHistory = form.querySelector('input[name="history"]');
+            const hiddenId = form.querySelector('input[name="id"]');
+            const hiddenCurrentSvg = form.querySelector('input[name="currentSvg"]');
+
+            if (!hiddenHistory || !hiddenId) {
+                return;
+            }
+
+            const loadingSpinner = '<span class="loading loading-ring loading-xl"></span>';
+
+            let history = [];
+            try {
+                history = hiddenHistory.value ? JSON.parse(hiddenHistory.value) : [];
+            } catch (error) {
+                console.warn("Invalid history payload", error);
+                history = [];
+            }
+
+            function scrollChatToBottom() {
+                if (!chatHistoryElement) return;
+                chatHistoryElement.scrollTop = chatHistoryElement.scrollHeight;
+            }
+
+            function appendChatBubble(role, content) {
+                if (!chatHistoryElement) return;
+                const wrapper = document.createElement("div");
+                wrapper.className = `chat ${role === "user" ? "chat-start" : "chat-end"}`;
+
+                const bubble = document.createElement("div");
+                bubble.className = `chat-bubble ${role === "user" ? "bg-primary text-primary-content" : "bg-secondary text-secondary-content"}`;
+                const pre = document.createElement("pre");
+                pre.textContent = content;
+                bubble.appendChild(pre);
+
+                const footer = document.createElement("div");
+                footer.className = "chat-footer opacity-60 text-xs mt-1";
+                footer.textContent = role;
+
+                wrapper.appendChild(bubble);
+                wrapper.appendChild(footer);
+                chatHistoryElement.appendChild(wrapper);
+                scrollChatToBottom();
+            }
+
+            async function generateSVG(messages) {
+                const res = await fetch("/api/generateSVG", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ messages }),
+                });
+
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`Request failed: ${res.status} ${errorText}`);
+                }
+
+                const data = await res.json();
+                return data.svg;
+            }
+
+            async function updateSvg(updatedData) {
+                const res = await fetch("/api/updateSVG", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(updatedData),
+                });
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(errorText || "Update failed");
+                }
+                return res.json();
+            }
+
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+
+                const promptContent = (promptInput?.value || "").trim();
+                if (!promptContent) {
+                    return;
+                }
+
+                const userPrompt = { role: "user", content: promptContent };
+                history.push(userPrompt);
+                appendChatBubble(userPrompt.role, userPrompt.content);
+                hiddenHistory.value = JSON.stringify(history);
+                if (promptInput) {
+                    promptInput.value = "";
+                }
+
+                const previousSvg = svgPreview ? svgPreview.innerHTML : "";
+                if (svgPreview) {
+                    svgPreview.innerHTML += loadingSpinner;
+                }
+
+                try {
+                    let aiResponse = await generateSVG(history);
+                    if (!aiResponse || typeof aiResponse !== "object") {
+                        aiResponse = { role: "assistant", content: "" };
+                    }
+
+                    const svgMatch = aiResponse.content?.match(/<svg[\s\S]*?<\/svg>/i);
+                    aiResponse.content = svgMatch ? svgMatch[0] : "";
+                    appendChatBubble(aiResponse.role, aiResponse.content || "(reponse vide)");
+
+                    if (!aiResponse.content) {
+                        throw new Error("SVG vide retourne par le modele");
+                    }
+
+                    history.push(aiResponse);
+                    hiddenHistory.value = JSON.stringify(history);
+
+                    if (svgPreview) {
+                        svgPreview.innerHTML = aiResponse.content;
+                    }
+                    if (hiddenCurrentSvg) {
+                        hiddenCurrentSvg.value = aiResponse.content;
+                    }
+
+                    const updatePayload = {
+                        id: hiddenId.value,
+                        code_svg: aiResponse.content,
+                        chat_history: hiddenHistory.value,
+                    };
+
+                    const response = await updateSvg(updatePayload);
+                    if (!response?.success) {
+                        throw new Error(response?.error || "Mise a jour echouee");
+                    }
+
+                    alert("SVG updated successfully");
+                } catch (error) {
+                    console.error(error);
+                    if (svgPreview) {
+                        svgPreview.innerHTML = previousSvg;
+                    }
+                    if (chatHistoryElement && chatHistoryElement.lastElementChild) {
+                        chatHistoryElement.removeChild(chatHistoryElement.lastElementChild);
+                    }
+                    if (history.length > 0) {
+                        history.pop();
+                        hiddenHistory.value = JSON.stringify(history);
+                    }
+                    alert(`Failed to update SVG: ${error?.message || error}`);
+                }
+            });
+        })();
+    </script>
+</Layout>
