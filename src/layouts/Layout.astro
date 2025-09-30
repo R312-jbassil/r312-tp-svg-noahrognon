@@ -1,20 +1,48 @@
----
+﻿---
 import "../styles/global.css";
+import { ui } from "../i18n/ui.js";
+
+const localLocale = Astro.locals.lang === 'fr' || Astro.locals.lang === 'en' ? Astro.locals.lang : 'en';
+const { title, locale: layoutLocale } = Astro.props;
+const locale = layoutLocale === 'fr' || layoutLocale === 'en' ? layoutLocale : localLocale;
+const pageTitle = title ?? ui[locale].meta.title;
 ---
+
 <!doctype html>
-<html lang="en" data-theme="light" class="h-full">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
-	</head>
-	<body class="h-full">
-		<div class="h-full flex flex-col min-h-0">
-			<div class="flex-1 min-h-0">
-				<slot />
-			</div>
-		</div>
-	</body>
+<html lang={locale} data-theme="light" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+  </head>
+  <body class="h-full">
+    <div class="h-full flex flex-col min-h-0">
+      <header class="w-full border-b border-base-300 bg-base-100">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+          <nav class="flex items-center gap-4 text-sm font-medium">
+            <a href="/" class="link link-hover">{ui[locale].nav.home}</a>
+            <a href="/generator" class="link link-hover">{ui[locale].nav.generator}</a>
+            <a href="/gallery" class="link link-hover">{ui[locale].nav.gallery}</a>
+          </nav>
+          <form method="POST" action={Astro.url.pathname} class="flex items-center gap-2">
+            <label class="text-sm font-semibold" for="language-select">{ui[locale].nav.language}</label>
+            <select
+              id="language-select"
+              name="language"
+              class="select select-bordered select-sm"
+              onchange="this.form.submit()"
+            >
+              <option value="en" selected={locale === 'en'}>{ui[locale].nav.english}</option>
+              <option value="fr" selected={locale === 'fr'}>{ui[locale].nav.french}</option>
+            </select>
+          </form>
+        </div>
+      </header>
+      <main class="flex-1 min-h-0">
+        <slot />
+      </main>
+    </div>
+  </body>
 </html>

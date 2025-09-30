@@ -1,18 +1,26 @@
----
+﻿---
 import Layout from "../layouts/Layout.astro";
+import { ui } from "../i18n/ui.js";
+
+const locale = Astro.locals.lang === "fr" || Astro.locals.lang === "en"
+  ? Astro.locals.lang
+  : "en";
+const pageText = ui[locale].index;
 ---
 
-<Layout>
-  <div
-    class="flex flex-col h-full items-center justify-center glass bg-primary"
-  >
-    <h1 class="text-4xl font-bold mb-4 text-primary-content">
-      Welcome to SVG Generator
-    </h1>
-    <p class="mb-6 text-lg text-primary-content">
-      Create and render SVGs from prompts.
+<Layout title={pageText.title} locale={locale}>
+  <div class="flex flex-col h-full items-center justify-center glass bg-primary gap-4">
+    <h1 class="text-4xl font-bold text-primary-content">{pageText.title}</h1>
+    <p class="text-lg text-primary-content text-center max-w-2xl">
+      {pageText.description}
     </p>
-    <a href="generator" class="btn btn-secondary">Go to SVG Generator</a>
-    <a href="gallery" class="btn btn-secondary">Library</a>
+    <div class="flex flex-wrap gap-3 justify-center">
+      <a href="generator" class="btn btn-secondary">
+        {pageText.generatorButton}
+      </a>
+      <a href="gallery" class="btn btn-secondary">
+        {pageText.galleryButton}
+      </a>
+    </div>
   </div>
 </Layout>
