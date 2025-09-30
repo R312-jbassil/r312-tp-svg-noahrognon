@@ -2,9 +2,9 @@
 import Layout from "../layouts/Layout.astro";
 import { ui } from "../i18n/ui.js";
 
-const locale = Astro.locals.lang as 'en' | 'fr' ?? 'en';
-console.log('Locale in index:', locale);
+const locale = Astro.locals.lang === 'fr' || Astro.locals.lang === 'en' ? Astro.locals.lang : 'en';
 const generatorUi = ui[locale].generator;
+const apiUi = ui[locale].api;
 ---
 
 <Layout title={generatorUi.pageTitle} locale={locale}>
@@ -65,10 +65,8 @@ const generatorUi = ui[locale].generator;
     </div>
   </div>
 
-  <script>
+  <script define:vars={{ generatorText: generatorUi, apiText: apiUi }}>
     //@ts-nocheck
-    const generatorText = JSON.parse({JSON.stringify(generatorUi)});
-    const apiText = JSON.parse({JSON.stringify(apiUi)});
 
     const promptElement = document.getElementById("user-prompt");
     const svgContainer = document.getElementById("svg-container");

@@ -4,9 +4,9 @@ import pb from "../../utils/pb";
 import { Collections, type SvgRecord, type ChatMessage } from "../../utils/pocketbase-types";
 import { ui } from "../../i18n/ui.js";
 
-const locale = Astro.locals.lang as 'en' | 'fr' ?? 'en';
-console.log('Locale in index:', locale);;
-const galleryUi = ui[locale].gallery;
+const locale = Astro.locals.lang === 'fr' || Astro.locals.lang === 'en' ? Astro.locals.lang : 'en';
+const galleryUi = ui[locale].galleryDetail;
+const apiUi = ui[locale].api;
 
 const id = Astro.params.id;
 let svg: SvgRecord | null = null;
@@ -119,10 +119,8 @@ const svgMarkup = svg?.code_svg || "";
     )}
   </section>
 
-  <script>
+  <script define:vars={{ galleryText: galleryUi, apiText: apiUi }}>
     //@ts-nocheck
-    const galleryText = JSON.parse({JSON.stringify(galleryUi)});
-    const apiText = JSON.parse({JSON.stringify(apiUi)});
 
     (function () {
       const form = document.getElementById("input-prompt-form");

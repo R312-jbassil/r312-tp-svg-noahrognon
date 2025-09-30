@@ -4,16 +4,13 @@ import pb from "../../utils/pb";
 import { Collections, type SvgRecord } from "../../utils/pocketbase-types";
 import { ui } from "../../i18n/ui.js";
 
-const locale = (Astro.locals.lang as "en" | "fr") ?? "en";
-console.log("Locale in index:", locale);
+const locale = Astro.locals.lang === 'fr' || Astro.locals.lang === 'en' ? Astro.locals.lang : 'en';
 const galleryText = ui[locale].gallery;
 
 let svgItems: SvgRecord[] = [];
 
 try {
-  const records = await pb
-    .collection(Collections.Svg)
-    .getFullList({ sort: "-created" });
+  const records = await pb.collection(Collections.Svg).getFullList({ sort: "-created" });
   if (Array.isArray(records)) {
     svgItems = records as SvgRecord[];
   }
@@ -26,23 +23,18 @@ try {
   <section class="max-w-6xl mx-auto px-6 py-10 space-y-6">
     <header class="flex items-center justify-between gap-4 flex-wrap">
       <h1 class="text-3xl font-bold">{galleryText.title}</h1>
-      <a class="btn btn-primary" href="/generator"
-        >{galleryText.backToGenerator}</a
-      >
+      <a class="btn btn-primary" href="/generator">{galleryText.backToGenerator}</a>
     </header>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {
         svgItems.length > 0 ? (
           svgItems.map((item) => (
-            <article
-              class="card bg-base-100 shadow border border-base-300"
-              key={item.id}
-            >
+            <article class="card bg-base-100 shadow border border-base-300" key={item.id}>
               <div class="card-body space-y-4">
                 <h2 class="card-title text-lg">{item.name}</h2>
                 <div class="bg-base-200 rounded-box p-3 h-48 overflow-auto">
-                  <div class="w-full h-full" set:html={item.code_svg} />
+                  <div class="w-full h-full" set:html={item.code_svg}></div>
                 </div>
                 <a class="btn btn-outline" href={`/gallery/${item.id}`}>
                   {galleryText.open}
@@ -59,3 +51,5 @@ try {
     </div>
   </section>
 </Layout>
+
+
