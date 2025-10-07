@@ -3,19 +3,22 @@ import Layout from "../../layouts/Layout.astro";
 import pb from "../../utils/pb";
 import { Collections, type SvgRecord, type ChatMessage } from "../../utils/pocketbase-types";
 import { ui } from "../../i18n/ui.js";
-
+const user = Astro.locals.user;
 const locale = Astro.locals.lang === 'fr' || Astro.locals.lang === 'en' ? Astro.locals.lang : 'en';
 const galleryUi = ui[locale].galleryDetail;
 const apiUi = ui[locale].api;
+const galleryDownloadLabel = ui[locale].gallery.download;
 
 const id = Astro.params.id;
 let svg: SvgRecord | null = null;
 let chatHistory: ChatMessage[] = [];
 let loadError = "";
 
-if (id) {
+if (id && user?.id) {
   try {
-    const record = await pb.collection(Collections.Svg).getOne(id);
+    const record = await pb
+      .collection(Collections.Svg)
+      .getFirstListItem(`id = "${id}" && users = "${user.id}"`);
     svg = record as SvgRecord;
 
     const rawHistory = record?.chat_history;
@@ -35,12 +38,17 @@ if (id) {
     console.error("Failed to load SVG record", error);
     loadError = galleryUi.errors.loadFailed;
   }
-} else {
+} else if (!id) {
   loadError = galleryUi.errors.missingId;
+} else {
+  console.warn("User not authenticated or missing id when loading gallery item.");
+  loadError = galleryUi.errors.loadFailed;
 }
 
 const chatHistoryJson = JSON.stringify(chatHistory);
 const svgMarkup = svg?.code_svg || "";
+const svgBase64 = Buffer.from(svgMarkup, "utf-8").toString("base64");
+const downloadName = svg?.name?.trim() || "svg";
 ---
 
 <Layout title={galleryUi.title} locale={locale}>
@@ -65,6 +73,17 @@ const svgMarkup = svg?.code_svg || "";
         <div class="card bg-base-100 shadow border border-base-300">
           <div class="card-body space-y-4">
             <h2 class="card-title">{galleryUi.previewTitle}</h2>
+            <div class="flex justify-end">
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                data-download-svg
+                data-name={downloadName}
+                data-svg={svgBase64}
+              >
+                {galleryDownloadLabel}
+              </button>
+            </div>
             <div
               id="svg-preview"
               class="bg-base-200 rounded-box p-4 min-h-[24rem] overflow-auto"
@@ -123,6 +142,41 @@ const svgMarkup = svg?.code_svg || "";
     //@ts-nocheck
 
     (function () {
+      const downloadButtons = document.querySelectorAll("[data-download-svg]");
+      if (downloadButtons.length > 0) {
+        downloadButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            const svgBase64 = button.getAttribute("data-svg") || "";
+            const nameAttr = button.getAttribute("data-name") || "svg";
+
+            if (!svgBase64) {
+              console.warn("Missing SVG data for download button.");
+              return;
+            }
+
+            let svgContent = "";
+            try {
+              svgContent = atob(svgBase64);
+            } catch (error) {
+              console.error("Failed to decode SVG payload", error);
+              return;
+            }
+
+            const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+
+            const anchor = document.createElement("a");
+            const safeName = nameAttr.replace(/[^a-z0-9_\-]+/gi, "_") || "svg";
+            anchor.href = url;
+            anchor.download = `${safeName}.svg`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(url);
+          });
+        });
+      }
+
       const form = document.getElementById("input-prompt-form");
       if (!form) {
         return;

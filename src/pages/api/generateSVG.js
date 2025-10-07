@@ -50,9 +50,9 @@ export const POST = async ({ request }) => {
             "You are an SVG code generator. Generate SVG code for the following messages. Make sure to include ids for each part of the generated SVG.",
     };
 
-    try {
+    const invokeModel = async (modelId) => {
         const chatCompletion = await client.chat.completions.create({
-            model: NOM_MODEL,
+            model: modelId,
             messages: [systemMessage, ...messages],
         });
 
@@ -69,11 +69,31 @@ export const POST = async ({ request }) => {
         return new Response(JSON.stringify({ svg: message }), {
             headers: jsonHeaders,
         });
+    };
+
+    try {
+        return await invokeModel(NOM_MODEL);
     } catch (error) {
         console.error("OpenRouter call failed", error);
-        return new Response(
-            JSON.stringify({ error: "Failed to generate SVG." }),
-            { status: 502, headers: jsonHeaders },
-        );
+
+        const shouldRetry =
+            error?.status === 404 ||
+            error?.code === 404 ||
+            error?.error?.code === 404;
+
+        if (shouldRetry && NOM_MODEL !== "openrouter/auto") {
+            console.warn(`Retrying with fallback model openrouter/auto due to 404 on ${NOM_MODEL}`);
+            try {
+                return await invokeModel("openrouter/auto");
+            } catch (fallbackError) {
+                console.error("Fallback model invocation failed", fallbackError);
+            }
+        }
+
+        const message = typeof error?.message === "string" ? error.message : "Failed to generate SVG.";
+        return new Response(JSON.stringify({ error: message }), {
+            status: 502,
+            headers: jsonHeaders,
+        });
     }
 };

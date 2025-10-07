@@ -1,0 +1,406 @@
+---
+import Layout from "../layouts/Layout.astro";
+import pb from "../utils/pb";
+import { ui } from "../i18n/ui.js";
+
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect("/login");
+}
+
+const locale =
+  Astro.locals.lang === "fr" || Astro.locals.lang === "en"
+    ? Astro.locals.lang
+    : "en";
+const profileText = ui[locale].profile;
+
+const displayName =
+  user?.name?.trim() ||
+  user?.username?.trim() ||
+  (user?.email ? user.email.split("@")[0] : "User");
+
+let avatarUrl = "";
+if (user?.avatar) {
+  try {
+    avatarUrl = pb.files.getUrl(user, user.avatar, {
+      thumb: "200x200",
+    });
+  } catch (error) {
+    console.warn("Failed to build avatar URL", error);
+  }
+}
+
+const initials = (displayName || "U")
+  .split(/\s+/)
+  .map((part) => part[0]?.toUpperCase())
+  .filter(Boolean)
+  .slice(0, 2)
+  .join("") || "U";
+
+let memberSince = "";
+if (user?.created) {
+  try {
+    const formatter = new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    memberSince = formatter.format(new Date(user.created));
+  } catch (error) {
+    console.warn("Failed to format member since date", error);
+    memberSince = user.created;
+  }
+}
+---
+
+<Layout title={profileText.title} locale={locale}>
+  <section class="relative overflow-hidden bg-base-200/60">
+    <div
+      class="absolute inset-0 bg-gradient-to-br from-primary/10 via-base-200 to-secondary/10"
+      aria-hidden="true"
+    />
+    <div class="relative max-w-5xl mx-auto px-6 py-12 space-y-8">
+      <header class="flex flex-col gap-3">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-base-100 text-sm font-semibold shadow-sm w-max">
+          <span class="w-2 h-2 rounded-full bg-primary animate-pulse" />
+          {profileText.hello} {displayName}
+        </span>
+        <h1 class="text-4xl font-bold text-base-content">{profileText.title}</h1>
+        <p class="text-base-content/70 max-w-2xl">{profileText.subtitle}</p>
+      </header>
+
+      <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-6">
+        <article class="card bg-base-100/90 backdrop-blur border border-base-300 shadow-lg">
+          <div class="card-body space-y-6">
+            <div class="flex items-center gap-4">
+              <div class="relative">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={profileText.avatarAlt}
+                    class="h-20 w-20 rounded-full border-4 border-primary/40 shadow-md object-cover"
+                  />
+                ) : (
+                  <div
+                    class="h-20 w-20 rounded-full bg-gradient-to-br from-primary to-secondary text-primary-content flex items-center justify-center text-2xl font-semibold border-4 border-primary/40 shadow-md"
+                  >
+                    {initials}
+                  </div>
+                )}
+                <span
+                  class="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-success text-success-content flex items-center justify-center text-xs font-bold shadow"
+                >
+                  OK
+                </span>
+              </div>
+              <div>
+                <p class="text-sm uppercase tracking-wide text-base-content/60">
+                  {profileText.infoCard.heading}
+                </p>
+                <p class="text-2xl font-semibold text-base-content">
+                  {displayName}
+                </p>
+              </div>
+            </div>
+            <dl class="space-y-3 text-sm">
+              <div class="flex justify-between bg-base-200/60 rounded-lg px-4 py-3">
+                <dt class="font-semibold text-base-content/70">{profileText.infoCard.emailLabel}</dt>
+                <dd class="text-base-content">{user?.email ?? "--"}</dd>
+              </div>
+              <div class="flex justify-between bg-base-200/60 rounded-lg px-4 py-3">
+                <dt class="font-semibold text-base-content/70">{profileText.infoCard.idLabel}</dt>
+                <dd class="font-mono text-xs md:text-sm text-base-content/80 break-all">
+                  {user?.id ?? "--"}
+                </dd>
+              </div>
+              {memberSince && (
+                <div class="flex justify-between bg-base-200/60 rounded-lg px-4 py-3">
+                  <dt class="font-semibold text-base-content/70">{profileText.infoCard.memberSince}</dt>
+                  <dd class="text-base-content">{memberSince}</dd>
+                </div>
+              )}
+            </dl>
+            <div class="divider"></div>
+            <div class="space-y-4">
+              <div>
+                <h2 class="text-xl font-semibold text-base-content">
+                  {profileText.detailsCard.heading}
+                </h2>
+                <p class="text-sm text-base-content/70">{profileText.detailsCard.description}</p>
+              </div>
+              <form id="profile-details-form" class="space-y-4" enctype="multipart/form-data">
+                <label class="form-control">
+                  <span class="label">
+                    <span class="label-text font-semibold text-base-content/80">
+                      {profileText.detailsCard.nameLabel}
+                    </span>
+                  </span>
+                  <input
+                    id="profile-display-name"
+                    name="name"
+                    type="text"
+                    value={displayName}
+                    required
+                    class="input input-bordered input-lg bg-base-200/60 focus:input-primary"
+                  />
+                </label>
+                <label class="form-control">
+                  <span class="label">
+                    <span class="label-text font-semibold text-base-content/80">
+                      {profileText.detailsCard.avatarLabel}
+                    </span>
+                  </span>
+                  <input
+                    id="profile-avatar"
+                    name="avatar"
+                    type="file"
+                    accept="image/*"
+                    class="file-input file-input-bordered w-full"
+                  />
+                  <span class="label-text-alt text-xs text-base-content/60">
+                    {profileText.detailsCard.avatarHint}
+                  </span>
+                </label>
+                <button type="submit" class="btn btn-primary btn-lg w-full md:w-auto shadow-lg shadow-primary/30">
+                  {profileText.detailsCard.submit}
+                </button>
+              </form>
+              <p id="details-status" class="text-sm"></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card bg-base-100/90 backdrop-blur border border-base-300 shadow-lg">
+          <div class="card-body space-y-6">
+            <div>
+              <h2 class="card-title text-2xl">{profileText.passwordCard.heading}</h2>
+              <p class="text-sm text-base-content/70">{profileText.passwordCard.description}</p>
+            </div>
+
+            <form id="password-form" class="space-y-4">
+              <label class="form-control">
+                <span class="label">
+                  <span class="label-text font-semibold text-base-content/80">
+                    {profileText.passwordCard.currentLabel}
+                  </span>
+                </span>
+                <input
+                  type="password"
+                  name="currentPassword"
+                  minlength="8"
+                  required
+                  placeholder="********"
+                  class="input input-bordered input-lg bg-base-200/60 focus:input-primary"
+                />
+              </label>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label class="form-control">
+                  <span class="label">
+                    <span class="label-text font-semibold text-base-content/80">
+                      {profileText.passwordCard.newLabel}
+                    </span>
+                  </span>
+                  <input
+                    type="password"
+                    name="newPassword"
+                    minlength="8"
+                    required
+                    placeholder="********"
+                    class="input input-bordered input-lg bg-base-200/60 focus:input-primary"
+                  />
+                </label>
+                <label class="form-control">
+                  <span class="label">
+                    <span class="label-text font-semibold text-base-content/80">
+                      {profileText.passwordCard.confirmLabel}
+                    </span>
+                  </span>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    minlength="8"
+                    required
+                    placeholder="********"
+                    class="input input-bordered input-lg bg-base-200/60 focus:input-primary"
+                  />
+                </label>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-lg w-full md:w-auto shadow-lg shadow-primary/30">
+                {profileText.passwordCard.submit}
+              </button>
+            </form>
+
+            <p id="password-status" class="text-sm"></p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <script type="module" define:vars={{ profileMessages: profileText }}>
+    //@ts-nocheck
+    const detailsForm = document.getElementById("profile-details-form");
+    const detailsStatus = document.getElementById("details-status");
+    const avatarInput = document.getElementById("profile-avatar");
+    const nameInput = document.getElementById("profile-display-name");
+    const detailsMessages = profileMessages.detailsStatus;
+    const MAX_AVATAR_SIZE = 3 * 1024 * 1024; // 3 MB
+
+    detailsForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!detailsForm || !detailsStatus) return;
+
+      const formData = new FormData(detailsForm);
+      const nameValue = (formData.get("name") || "").toString().trim();
+      const avatarFile = avatarInput?.files?.[0] || null;
+
+      detailsStatus.textContent = "";
+      detailsStatus.className = "text-sm";
+
+      if (!nameValue) {
+        detailsStatus.classList.add("text-error");
+        detailsStatus.textContent = detailsMessages.nameRequired;
+        return;
+      }
+
+      if (avatarFile) {
+        if (!avatarFile.type.startsWith("image/")) {
+          detailsStatus.classList.add("text-error");
+          detailsStatus.textContent = detailsMessages.fileType;
+          return;
+        }
+        if (avatarFile.size > MAX_AVATAR_SIZE) {
+          detailsStatus.classList.add("text-error");
+          detailsStatus.textContent = detailsMessages.fileTooLarge;
+          return;
+        }
+      }
+
+      const submitButton = detailsForm.querySelector("button[type='submit']");
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.classList.add("loading");
+      }
+
+      const payload = new FormData();
+      payload.append("name", nameValue);
+      if (avatarFile) {
+        payload.append("avatar", avatarFile);
+      }
+
+      try {
+        const response = await fetch("/api/profile/details", {
+          method: "POST",
+          body: payload,
+        });
+        const data = await response.json().catch(() => ({}));
+
+        detailsStatus.classList.remove("text-error", "text-success");
+
+        if (response.ok && data?.success) {
+          detailsStatus.classList.add("text-success");
+          detailsStatus.textContent = detailsMessages.success;
+          if (data?.user) {
+            localStorage.setItem("user", JSON.stringify(data.user));
+          }
+          setTimeout(() => {
+            window.location.reload();
+          }, 700);
+        } else {
+          detailsStatus.classList.add("text-error");
+          detailsStatus.textContent = data?.error || detailsMessages.genericError;
+        }
+      } catch (error) {
+        console.error("Failed to update profile details", error);
+        detailsStatus.classList.remove("text-success");
+        detailsStatus.classList.add("text-error");
+        detailsStatus.textContent = detailsMessages.genericError;
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.classList.remove("loading");
+        }
+      }
+    });
+
+    const form = document.getElementById("password-form");
+    const status = document.getElementById("password-status");
+    const messages = profileMessages.status;
+
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!form || !status) return;
+
+      const formData = new FormData(form);
+      const currentPassword = (formData.get("currentPassword") || "").trim();
+      const newPassword = (formData.get("newPassword") || "").trim();
+      const confirmPassword = (formData.get("confirmPassword") || "").trim();
+
+      status.textContent = "";
+      status.className = "text-sm";
+
+      if (
+        !currentPassword ||
+        !newPassword ||
+        !confirmPassword ||
+        newPassword.length < 8 ||
+        confirmPassword.length < 8
+      ) {
+        status.classList.add("text-error");
+        status.textContent = messages.validationError;
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        status.classList.add("text-error");
+        status.textContent = messages.mismatch;
+        return;
+      }
+
+      const submitButton = form.querySelector("button[type='submit']");
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.classList.add("loading");
+      }
+
+      try {
+        const response = await fetch("/api/profile/password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+        });
+        const data = await response.json().catch(() => ({}));
+
+        status.classList.remove("text-error", "text-success");
+
+        if (response.ok && data?.success) {
+          status.classList.add("text-success");
+          status.textContent = messages.success;
+          form.reset();
+        } else if (response.status === 401) {
+          status.classList.add("text-error");
+          status.textContent = messages.currentInvalid;
+        } else {
+          status.classList.add("text-error");
+          status.textContent = data?.error || messages.genericError;
+        }
+      } catch (error) {
+        console.error("Failed to update password", error);
+        status.classList.remove("text-success");
+        status.classList.add("text-error");
+        status.textContent = messages.genericError;
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.classList.remove("loading");
+        }
+      }
+    });
+  </script>
+</Layout>
+
+
+
+

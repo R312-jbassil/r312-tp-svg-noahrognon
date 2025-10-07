@@ -3,19 +3,29 @@ import Layout from "../../layouts/Layout.astro";
 import pb from "../../utils/pb";
 import { Collections, type SvgRecord } from "../../utils/pocketbase-types";
 import { ui } from "../../i18n/ui.js";
-
-const locale = Astro.locals.lang === 'fr' || Astro.locals.lang === 'en' ? Astro.locals.lang : 'en';
+const user = Astro.locals.user;
+const locale =
+  Astro.locals.lang === "fr" || Astro.locals.lang === "en"
+    ? Astro.locals.lang
+    : "en";
 const galleryText = ui[locale].gallery;
 
 let svgItems: SvgRecord[] = [];
 
-try {
-  const records = await pb.collection(Collections.Svg).getFullList({ sort: "-created" });
-  if (Array.isArray(records)) {
-    svgItems = records as SvgRecord[];
+if (user?.id) {
+  try {
+    const records = await pb.collection(Collections.Svg).getFullList({
+      sort: "-created",
+      filter: `users = "${user.id}"`,
+    });
+    if (Array.isArray(records)) {
+      svgItems = records as SvgRecord[];
+    }
+  } catch (error) {
+    console.error("Failed to load gallery", error);
   }
-} catch (error) {
-  console.error("Failed to load gallery", error);
+} else {
+  console.warn("Gallery page accessed without an authenticated user.");
 }
 ---
 
@@ -23,22 +33,46 @@ try {
   <section class="max-w-6xl mx-auto px-6 py-10 space-y-6">
     <header class="flex items-center justify-between gap-4 flex-wrap">
       <h1 class="text-3xl font-bold">{galleryText.title}</h1>
-      <a class="btn btn-primary" href="/generator">{galleryText.backToGenerator}</a>
+      <a class="btn btn-primary" href="/generator"
+        >{galleryText.backToGenerator}</a
+      >
     </header>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {
         svgItems.length > 0 ? (
           svgItems.map((item) => (
-            <article class="card bg-base-100 shadow border border-base-300" key={item.id}>
+            <article
+              class="card bg-base-100 shadow border border-base-300"
+              key={item.id}
+            >
               <div class="card-body space-y-4">
                 <h2 class="card-title text-lg">{item.name}</h2>
                 <div class="bg-base-200 rounded-box p-3 h-48 overflow-auto">
-                  <div class="w-full h-full" set:html={item.code_svg}></div>
+                  <div class="w-full h-full" set:html={item.code_svg} />
                 </div>
-                <a class="btn btn-outline" href={`/gallery/${item.id}`}>
-                  {galleryText.open}
-                </a>
+                {
+                  (() => {
+                    const svgBase64 = Buffer.from(item.code_svg ?? "", "utf-8").toString("base64");
+                    const safeName = item.name?.trim() || "svg";
+                    return (
+                      <div class="flex flex-col sm:flex-row gap-2">
+                        <a class="btn btn-outline flex-1" href={`/gallery/${item.id}`}>
+                          {galleryText.open}
+                        </a>
+                        <button
+                          type="button"
+                          class="btn btn-primary flex-1"
+                          data-download-svg
+                          data-svg={svgBase64}
+                          data-name={safeName}
+                        >
+                          {galleryText.download}
+                        </button>
+                      </div>
+                    );
+                  })()
+                }
               </div>
             </article>
           ))
@@ -52,4 +86,41 @@ try {
   </section>
 </Layout>
 
+<script>
+  //@ts-nocheck
+  (function () {
+    const buttons = document.querySelectorAll("[data-download-svg]");
+    if (!buttons.length) return;
 
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const svgBase64 = button.getAttribute("data-svg") || "";
+        const nameAttr = button.getAttribute("data-name") || "svg";
+        if (!svgBase64) {
+          console.warn("Missing SVG data for download button.");
+          return;
+        }
+
+        let svgContent = "";
+        try {
+          svgContent = atob(svgBase64);
+        } catch (error) {
+          console.error("Failed to decode SVG payload", error);
+          return;
+        }
+
+        const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        const safeName = nameAttr.replace(/[^a-z0-9_\-]+/gi, "_") || "svg";
+        anchor.download = `${safeName}.svg`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+      });
+    });
+  })();
+</script>

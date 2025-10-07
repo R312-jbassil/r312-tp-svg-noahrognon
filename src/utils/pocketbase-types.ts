@@ -1,5 +1,6 @@
 export enum Collections {
-    Svg = "svgs",
+    Svg = 'svgs',
+    Users = 'users',
 }
 
 export interface BaseRecord {
@@ -19,4 +20,12 @@ export interface SvgRecord extends BaseRecord {
     name: string;
     code_svg: string;
     chat_history: ChatMessage[] | string | null;
+    users: string;
+}
+
+export interface UserRecord extends BaseRecord {
+    name?: string;
+    username?: string;
+    email: string;
+    avatar?: string;
 }

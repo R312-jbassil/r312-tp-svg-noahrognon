@@ -1,23 +1,26 @@
 ﻿---
 import Layout from "../layouts/Layout.astro";
 import { ui } from "../i18n/ui.js";
-
-const locale = Astro.locals.lang === 'fr' || Astro.locals.lang === 'en' ? Astro.locals.lang : 'en';
+const locale =
+  Astro.locals.lang === "fr" || Astro.locals.lang === "en"
+    ? Astro.locals.lang
+    : "en";
 const generatorUi = ui[locale].generator;
 const apiUi = ui[locale].api;
 ---
 
 <Layout title={generatorUi.pageTitle} locale={locale}>
   <div class="min-h-screen bg-base-200 flex items-center justify-center p-6">
-    <div class="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div
+      class="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+    >
       <div class="card bg-base-100 shadow-md border border-base-300">
         <div class="card-body">
           <h2 class="card-title">{generatorUi.prompt.title}</h2>
           <textarea
             id="user-prompt"
             class="textarea textarea-bordered w-full h-40"
-            placeholder={generatorUi.prompt.placeholder}
-          ></textarea>
+            placeholder={generatorUi.prompt.placeholder}></textarea>
           <div class="flex flex-wrap gap-2 mt-4">
             <button id="generate-button" class="btn btn-primary flex-1">
               {generatorUi.prompt.generate}
@@ -32,7 +35,8 @@ const apiUi = ui[locale].api;
       <div class="card bg-base-100 shadow-md border border-base-300">
         <div class="card-body">
           <h2 class="card-title">{generatorUi.code.title}</h2>
-          <pre class="mockup-code w-full h-80 overflow-auto">
+          <pre
+            class="mockup-code w-full h-80 overflow-auto">
             <code id="svg-output" class="text-xs" />
           </pre>
           <label class="form-control w-full mt-4">
@@ -46,7 +50,9 @@ const apiUi = ui[locale].api;
           <button id="save-button" type="button" class="btn btn-secondary mt-2">
             {generatorUi.code.save}
           </button>
-          <a class="btn btn-primary" href="/gallery">{generatorUi.code.galleryLink}</a>
+          <a class="btn btn-primary" href="/gallery"
+            >{generatorUi.code.galleryLink}</a
+          >
           <p id="save-status" class="text-sm opacity-70 mt-2"></p>
         </div>
       </div>
@@ -58,7 +64,8 @@ const apiUi = ui[locale].api;
             id="svg-container"
             class="w-full h-80 flex items-center justify-center bg-base-200 rounded-box overflow-auto"
           >
-            <span class="text-base-content/50">{generatorUi.preview.empty}</span>
+            <span class="text-base-content/50">{generatorUi.preview.empty}</span
+            >
           </div>
         </div>
       </div>
@@ -78,9 +85,20 @@ const apiUi = ui[locale].api;
     const saveStatus = document.getElementById("save-status");
     const promptList = [];
     let lastGeneratedSvg = "";
+    function getStoredUser() {
+      try {
+        const rawUser = localStorage.getItem("user");
+        return rawUser ? JSON.parse(rawUser) : null;
+      } catch (error) {
+        console.warn("Failed to parse stored user", error);
+        return null;
+      }
+    }
+    let currentUser = getStoredUser();
 
     const messages = generatorText.messages;
-    const loadingSpinner = '<span class="loading loading-ring loading-xl"></span>';
+    const loadingSpinner =
+      '<span class="loading loading-ring loading-xl"></span>';
     const noSvgHtml = `<span class="text-base-content/60">${messages.noSvg}</span>`;
     const promptHintHtml = `<span class="text-base-content/60">${messages.promptHint}</span>`;
     const generationErrorHtml = `<span class="text-error">${messages.generationErrorLabel}</span>`;
@@ -246,6 +264,10 @@ const apiUi = ui[locale].api;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(params),
       });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || messages.saveErrorFallback);
+      }
       return res.json();
     }
 
@@ -253,6 +275,7 @@ const apiUi = ui[locale].api;
       if (!saveButton) return;
 
       const name = svgNameInput ? (svgNameInput.value || "").trim() : "";
+      currentUser = getStoredUser();
 
       if (!lastGeneratedSvg) {
         if (saveStatus) {
@@ -270,6 +293,13 @@ const apiUi = ui[locale].api;
         }
         return;
       }
+      if (!currentUser?.id) {
+        console.warn("Cannot save SVG without an authenticated user.");
+        if (saveStatus) {
+          saveStatus.textContent = messages.saveErrorFallback;
+        }
+        return;
+      }
 
       saveButton.disabled = true;
       if (saveStatus) {
@@ -282,6 +312,7 @@ const apiUi = ui[locale].api;
           name,
           code_svg: lastGeneratedSvg,
           chat_history: chatHistory,
+          user: currentUser.id,
         });
 
         if (response?.success) {

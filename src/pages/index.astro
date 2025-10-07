@@ -1,15 +1,19 @@
 ﻿---
 import Layout from "../layouts/Layout.astro";
 import { ui } from "../i18n/ui.js";
+const user = Astro.locals.user;
 
-const locale = Astro.locals.lang === "fr" || Astro.locals.lang === "en"
-  ? Astro.locals.lang
-  : "en";
+const locale =
+  Astro.locals.lang === "fr" || Astro.locals.lang === "en"
+    ? Astro.locals.lang
+    : "en";
 const pageText = ui[locale].index;
 ---
 
 <Layout title={pageText.title} locale={locale}>
-  <div class="flex flex-col h-full items-center justify-center glass bg-primary gap-4">
+  <div
+    class="flex flex-col h-full items-center justify-center glass bg-primary gap-4"
+  >
     <h1 class="text-4xl font-bold text-primary-content">{pageText.title}</h1>
     <p class="text-lg text-primary-content text-center max-w-2xl">
       {pageText.description}
@@ -18,6 +22,7 @@ const pageText = ui[locale].index;
       <a href="generator" class="btn btn-secondary">
         {pageText.generatorButton}
       </a>
+
       <a href="gallery" class="btn btn-secondary">
         {pageText.galleryButton}
       </a>

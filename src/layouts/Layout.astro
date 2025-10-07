@@ -1,11 +1,35 @@
-﻿---
-import "../styles/global.css";
-import { ui } from "../i18n/ui.js";
+---
+import '../styles/global.css';
+import { ui } from '../i18n/ui.js';
+import pb from '../utils/pb.js';
 
-const localLocale = Astro.locals.lang === 'fr' || Astro.locals.lang === 'en' ? Astro.locals.lang : 'en';
+const localLocale =
+  Astro.locals.lang === 'fr' || Astro.locals.lang === 'en'
+    ? Astro.locals.lang
+    : 'en';
 const { title, locale: layoutLocale } = Astro.props;
-const locale = layoutLocale === 'fr' || layoutLocale === 'en' ? layoutLocale : localLocale;
+const locale =
+  layoutLocale === 'fr' || layoutLocale === 'en' ? layoutLocale : localLocale;
 const pageTitle = title ?? ui[locale].meta.title;
+const user = Astro.locals.user;
+const userDisplayName =
+  (user?.name || '').trim() ||
+  (user?.username || '').trim() ||
+  (user?.email ? user.email.split('@')[0] : '');
+let avatarUrl = '';
+if (user?.avatar) {
+  try {
+    avatarUrl = pb.files.getUrl(user, user.avatar, { thumb: '80x80' });
+  } catch (error) {
+    console.warn('Failed to resolve avatar url', error);
+  }
+}
+const initials = (userDisplayName || 'U')
+  .split(/\s+/)
+  .map((part) => part?.[0]?.toUpperCase())
+  .filter(Boolean)
+  .slice(0, 2)
+  .join('') || 'U';
 ---
 
 <!doctype html>
@@ -20,24 +44,75 @@ const pageTitle = title ?? ui[locale].meta.title;
   <body class="h-full">
     <div class="h-full flex flex-col min-h-0">
       <header class="w-full border-b border-base-300 bg-base-100">
-        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+        <div
+          class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap"
+        >
           <nav class="flex items-center gap-4 text-sm font-medium">
             <a href="/" class="link link-hover">{ui[locale].nav.home}</a>
-            <a href="/generator" class="link link-hover">{ui[locale].nav.generator}</a>
-            <a href="/gallery" class="link link-hover">{ui[locale].nav.gallery}</a>
+            <a href="/generator" class="link link-hover">
+              {ui[locale].nav.generator}
+            </a>
+            <a href="/gallery" class="link link-hover">
+              {ui[locale].nav.gallery}
+            </a>
           </nav>
-          <form method="POST" action={Astro.url.pathname} class="flex items-center gap-2">
-            <label class="text-sm font-semibold" for="language-select">{ui[locale].nav.language}</label>
-            <select
-              id="language-select"
-              name="language"
-              class="select select-bordered select-sm"
-              onchange="this.form.submit()"
+          <div class="flex items-center gap-4 flex-wrap">
+            {!user && (
+              <a href="/login" class="btn btn-sm btn-outline">
+                {ui[locale].nav.loginButton}
+              </a>
+            )}
+            {user && (
+              <a
+                href="/profile"
+                class="btn btn-sm btn-ghost gap-2 hover:bg-base-200/70 transition-colors"
+              >
+                <span class="hidden sm:inline">{ui[locale].nav.profile}</span>
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={userDisplayName || 'Avatar'}
+                    class="h-8 w-8 rounded-full object-cover border border-base-200"
+                  />
+                ) : (
+                  <span
+                    class="avatar placeholder h-8 w-8 rounded-full bg-primary text-primary-content text-sm font-semibold flex items-center justify-center"
+                  >
+                    {initials}
+                  </span>
+                )}
+              </a>
+            )}
+            {user && (
+              <form method="POST" action="/api/logout" class="m-0 p-0">
+                <button type="submit" class="btn btn-sm btn-primary">
+                  {ui[locale].nav.logoutButton}
+                </button>
+              </form>
+            )}
+            <form
+              method="POST"
+              action={Astro.url.pathname}
+              class="flex items-center gap-2"
             >
-              <option value="en" selected={locale === 'en'}>{ui[locale].nav.english}</option>
-              <option value="fr" selected={locale === 'fr'}>{ui[locale].nav.french}</option>
-            </select>
-          </form>
+              <label class="text-sm font-semibold" for="language-select">
+                {ui[locale].nav.language}
+              </label>
+              <select
+                id="language-select"
+                name="language"
+                class="select select-bordered select-sm"
+                onchange="this.form.submit()"
+              >
+                <option value="en" selected={locale === 'en'}>
+                  {ui[locale].nav.english}
+                </option>
+                <option value="fr" selected={locale === 'fr'}>
+                  {ui[locale].nav.french}
+                </option>
+              </select>
+            </form>
+          </div>
         </div>
       </header>
       <main class="flex-1 min-h-0">

@@ -1,7 +1,30 @@
-﻿export const onRequest = async (context, next) => {
-    // Middleware runs before each request to set language preference.
-    if (context.url.pathname.startsWith('/api/')) {
+
+import pb from '../utils/pb.js';
+
+const publicApiRoutes = ['/api/login', '/api/signup'];
+const publicPages = new Set(['/login', '/signup', '/']);
+
+export const onRequest = async (context, next) => {
+    const cookie = context.cookies.get('pb_auth')?.value;
+
+    if (cookie) {
+        pb.authStore.loadFromCookie(cookie);
+        if (pb.authStore.isValid) {
+            context.locals.user = pb.authStore.record;
+        }
+    }
+
+    const pathname = context.url.pathname;
+
+    if (pathname.startsWith('/api/')) {
+        if (!context.locals.user && !publicApiRoutes.includes(pathname)) {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+        }
         return next();
+    }
+
+    if (!context.locals.user && !publicPages.has(pathname)) {
+        return Response.redirect(new URL('/login', context.url), 303);
     }
 
     if (context.request.method === 'POST') {
@@ -14,10 +37,7 @@
                 maxAge: 60 * 60 * 24 * 365,
             });
 
-            return Response.redirect(
-                new URL(context.url.pathname + context.url.search, context.url),
-                303,
-            );
+            return Response.redirect(new URL(context.url.pathname + context.url.search, context.url), 303);
         }
     }
 
