@@ -9,6 +9,7 @@ export interface BaseRecord {
     updated: string;
     collectionId: string;
     collectionName: Collections;
+    expand?: Record<string, unknown>;
 }
 
 export interface ChatMessage {
@@ -20,7 +21,9 @@ export interface SvgRecord extends BaseRecord {
     name: string;
     code_svg: string;
     chat_history: ChatMessage[] | string | null;
-    users: string;
+    owner: string;
+    is_public: boolean;
+    likes_count: number;
 }
 
 export interface UserRecord extends BaseRecord {

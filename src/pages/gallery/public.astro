@@ -1,0 +1,255 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import pb from "../../utils/pb";
+import { Collections, type SvgRecord, type UserRecord } from "../../utils/pocketbase-types";
+import { ui } from "../../i18n/ui.js";
+
+const user = Astro.locals.user;
+const locale =
+  Astro.locals.lang === "fr" || Astro.locals.lang === "en"
+    ? Astro.locals.lang
+    : "en";
+const publicGalleryUi = ui[locale].publicGallery;
+const galleryUi = ui[locale].gallery;
+
+let publicSvgs: SvgRecord[] = [];
+
+try {
+  const records = await pb.collection(Collections.Svg).getFullList({
+    filter: "is_public = true",
+    sort: "-likes_count,-created",
+    expand: "owner",
+  });
+  if (Array.isArray(records)) {
+    publicSvgs = records as SvgRecord[];
+  }
+} catch (error) {
+  console.error("Failed to fetch public gallery", error);
+}
+
+const galleryItems = publicSvgs.map((item) => {
+  const ownerRecord =
+    (item.expand?.owner as UserRecord | undefined | null) ?? null;
+  const resolvedOwner =
+    ownerRecord?.name?.trim() ||
+    ownerRecord?.username?.trim() ||
+    (ownerRecord?.email ? ownerRecord.email.split("@")[0] : "") ||
+    publicGalleryUi.unknownAuthor;
+
+  return {
+    ...item,
+    svgBase64: Buffer.from(item.code_svg ?? "", "utf-8").toString("base64"),
+    likesCount:
+      typeof item.likes_count === "number" && !Number.isNaN(item.likes_count)
+        ? item.likes_count
+        : 0,
+    ownerName: resolvedOwner,
+    isLiked: false,
+  };
+});
+---
+
+<Layout title={publicGalleryUi.title} locale={locale}>
+  <section class="max-w-6xl mx-auto px-6 py-12">
+    <div class="rounded-3xl bg-base-100/70 backdrop-blur-lg border border-base-200/60 shadow-xl px-6 sm:px-10 py-10 space-y-8">
+      <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="space-y-2">
+          <h1 class="text-3xl font-bold tracking-tight">{publicGalleryUi.title}</h1>
+          <p class="text-base-content/70 max-w-2xl text-sm sm:text-base">
+            {publicGalleryUi.description}
+          </p>
+        </div>
+        <a class="btn btn-outline btn-sm sm:btn-md" href="/gallery">
+          {publicGalleryUi.backToMyGallery}
+        </a>
+      </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+      {
+        galleryItems.length > 0 ? (
+          galleryItems.map((item) => (
+            <article
+              class="card shadow-lg border border-primary/20 bg-gradient-to-br from-base-100/95 via-secondary/10 to-primary/10 transition duration-200 hover:shadow-2xl hover:border-primary/50 hover:-translate-y-1"
+              key={item.id}
+              data-public-card
+            >
+              <div class="card-body space-y-5">
+                <div class="flex items-start justify-between gap-4">
+                  <h2 class="card-title text-lg font-semibold tracking-wide break-words">{item.name}</h2>
+                  <div class="text-xs sm:text-sm text-right text-base-content/60">
+                    <span class="block uppercase tracking-wider text-base-content/80">
+                      {publicGalleryUi.createdBy}
+                    </span>
+                    <span class="font-semibold text-base-content">{item.ownerName}</span>
+                  </div>
+                </div>
+
+                <div class="bg-base-200/80 rounded-2xl p-3 h-48 overflow-auto border border-base-300/60 shadow-inner">
+                  <div class="w-full h-full" set:html={item.code_svg} />
+                </div>
+
+                <div class="flex items-center justify-between gap-3 text-sm text-base-content/70">
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold text-base-content" data-like-count>{item.likesCount}</span>
+                    <span>{galleryUi.likesLabel}</span>
+                  </div>
+                  <div class="flex gap-2">
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm shadow-sm"
+                      data-like-button
+                      data-id={item.id}
+                      data-liked={item.isLiked ? "true" : "false"}
+                      data-like-label={publicGalleryUi.like}
+                      data-unlike-label={publicGalleryUi.unlike}
+                      data-error-message={publicGalleryUi.likeError}
+                    >
+                      {item.isLiked ? publicGalleryUi.unlike : publicGalleryUi.like}
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-outline btn-sm"
+                      data-download-svg
+                      data-svg={item.svgBase64}
+                      data-name={item.name?.trim() || "svg"}
+                    >
+                      {galleryUi.download}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))
+        ) : (
+          <div class="col-span-full text-center text-base-content/70">
+            {publicGalleryUi.empty}
+          </div>
+        )
+      }
+    </div>
+  </div>
+  </section>
+</Layout>
+
+<script>
+  //@ts-nocheck
+  (function () {
+    const buttons = document.querySelectorAll("[data-download-svg]");
+    if (!buttons.length) return;
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const svgBase64 = button.getAttribute("data-svg") || "";
+        const nameAttr = button.getAttribute("data-name") || "svg";
+        if (!svgBase64) {
+          console.warn("Missing SVG data for download button.");
+          return;
+        }
+
+        let svgContent = "";
+        try {
+          svgContent = atob(svgBase64);
+        } catch (error) {
+          console.error("Failed to decode SVG payload", error);
+          return;
+        }
+
+        const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        const safeName = nameAttr.replace(/[^a-z0-9_\-]+/gi, "_") || "svg";
+        anchor.download = `${safeName}.svg`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+      });
+    });
+  })();
+</script>
+
+<script>
+  //@ts-nocheck
+  (function () {
+    const likeButtons = document.querySelectorAll("[data-like-button]");
+    if (!likeButtons.length) return;
+
+    const bodyDataset = document.body?.dataset || {};
+    const userId = bodyDataset.userId || "guest";
+    let storage;
+    try {
+      storage = window.localStorage;
+    } catch {
+      storage = null;
+    }
+    const storageKeyFor = (svgId) => `svg-like:${userId}:${svgId}`;
+
+    likeButtons.forEach((button) => {
+      const svgId = button.dataset.id;
+      if (!svgId) return;
+
+      const likeLabel = button.dataset.likeLabel || "Like";
+      const unlikeLabel = button.dataset.unlikeLabel || "Unlike";
+
+      const stored = storage?.getItem(storageKeyFor(svgId)) === "true";
+      button.dataset.liked = stored ? "true" : "false";
+      button.textContent = stored ? unlikeLabel : likeLabel;
+
+      button.addEventListener("click", async () => {
+        if (!svgId) return;
+
+        const liked = button.dataset.liked === "true";
+        const nextLiked = !liked;
+        const errorMessage = button.dataset.errorMessage || "Unable to update like.";
+
+        const card = button.closest("[data-public-card]");
+        const countElement = card?.querySelector("[data-like-count]");
+
+        button.disabled = true;
+        button.classList.add("loading");
+
+        try {
+          const res = await fetch("/api/likes/toggle", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ svgId, like: nextLiked }),
+          });
+
+          if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || res.statusText);
+          }
+
+          const data = await res.json().catch(() => null);
+          if (!data?.success) {
+            throw new Error(data?.error || "");
+          }
+
+          button.dataset.liked = String(data.liked);
+          button.textContent = data.liked ? unlikeLabel : likeLabel;
+
+          if (storage) {
+            if (data.liked) {
+              storage.setItem(storageKeyFor(svgId), "true");
+            } else {
+              storage.removeItem(storageKeyFor(svgId));
+            }
+          }
+
+          if (countElement && typeof data.likesCount === "number") {
+            countElement.textContent = String(data.likesCount);
+          }
+        } catch (error) {
+          console.error("Failed to toggle like", error);
+          const append = error?.message ? ` ${error.message}` : "";
+          alert(`${errorMessage}${append}`);
+        } finally {
+          button.disabled = false;
+          button.classList.remove("loading");
+        }
+      });
+    });
+  })();
+</script>

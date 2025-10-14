@@ -1,14 +1,16 @@
-﻿---
+---
 import Layout from "../../layouts/Layout.astro";
 import pb from "../../utils/pb";
 import { Collections, type SvgRecord } from "../../utils/pocketbase-types";
 import { ui } from "../../i18n/ui.js";
+
 const user = Astro.locals.user;
 const locale =
   Astro.locals.lang === "fr" || Astro.locals.lang === "en"
     ? Astro.locals.lang
     : "en";
 const galleryText = ui[locale].gallery;
+const publicGalleryHref = "/gallery/public";
 
 let svgItems: SvgRecord[] = [];
 
@@ -16,7 +18,7 @@ if (user?.id) {
   try {
     const records = await pb.collection(Collections.Svg).getFullList({
       sort: "-created",
-      filter: `users = "${user.id}"`,
+      filter: `owner = "${user.id}"`,
     });
     if (Array.isArray(records)) {
       svgItems = records as SvgRecord[];
@@ -27,62 +29,117 @@ if (user?.id) {
 } else {
   console.warn("Gallery page accessed without an authenticated user.");
 }
+
+const galleryItems = svgItems.map((item) => ({
+  ...item,
+  svgBase64: Buffer.from(item.code_svg ?? "", "utf-8").toString("base64"),
+  safeName: item.name?.trim() || "svg",
+  isPublic: Boolean(item.is_public),
+  likesCount:
+    typeof item.likes_count === "number" && !Number.isNaN(item.likes_count)
+      ? item.likes_count
+      : 0,
+}));
 ---
 
 <Layout title={galleryText.title} locale={locale}>
-  <section class="max-w-6xl mx-auto px-6 py-10 space-y-6">
-    <header class="flex items-center justify-between gap-4 flex-wrap">
-      <h1 class="text-3xl font-bold">{galleryText.title}</h1>
-      <a class="btn btn-primary" href="/generator"
-        >{galleryText.backToGenerator}</a
-      >
-    </header>
+  <section class="max-w-6xl mx-auto px-6 py-12">
+    <div class="rounded-3xl bg-base-100/70 backdrop-blur-lg border border-base-200/60 shadow-xl px-6 sm:px-10 py-10 space-y-8">
+      <header class="flex items-center justify-between gap-6 flex-wrap">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight">{galleryText.title}</h1>
+          <p class="text-base-content/70 mt-2 text-sm sm:text-base max-w-2xl">
+            {galleryItems.length > 0 ? galleryText.subtitle : galleryText.empty}
+          </p>
+        </div>
+        <div class="flex gap-3 flex-wrap">
+          <a class="btn btn-outline btn-sm sm:btn-md" href={publicGalleryHref}>
+            {galleryText.viewPublicGallery}
+          </a>
+          <a class="btn btn-primary btn-sm sm:btn-md" href="/generator">
+            {galleryText.backToGenerator}
+          </a>
+        </div>
+      </header>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
       {
-        svgItems.length > 0 ? (
-          svgItems.map((item) => (
+        galleryItems.length > 0 ? (
+          galleryItems.map((item) => (
             <article
-              class="card bg-base-100 shadow border border-base-300"
+              class="card shadow-lg border border-primary/20 bg-gradient-to-br from-base-100/95 via-primary/10 to-secondary/10 transition duration-200 hover:shadow-2xl hover:border-primary/50 hover:-translate-y-1"
               key={item.id}
+              data-gallery-card
             >
-              <div class="card-body space-y-4">
-                <h2 class="card-title text-lg">{item.name}</h2>
-                <div class="bg-base-200 rounded-box p-3 h-48 overflow-auto">
+              <div class="card-body space-y-5">
+                <div class="flex items-start justify-between gap-4">
+                  <h2 class="card-title text-lg font-semibold tracking-wide break-words">
+                    {item.name}
+                  </h2>
+                  <span
+                    class={`badge ${item.isPublic ? "badge-success" : "badge-ghost"} uppercase tracking-wide badge-lg`}
+                    data-visibility-label
+                  >
+                    {item.isPublic
+                      ? galleryText.visibilityPublic
+                      : galleryText.visibilityPrivate}
+                  </span>
+                </div>
+
+                <div class="flex items-center justify-between text-sm text-base-content/70">
+                  <span class="flex items-center gap-2">
+                    <span class="font-semibold text-base-content">{item.likesCount}</span>
+                    <span>{galleryText.likesLabel}</span>
+                  </span>
+                  <button
+                    type="button"
+                    class="btn btn-outline btn-primary btn-sm"
+                    data-toggle-public
+                    data-id={item.id}
+                    data-public={item.isPublic ? "true" : "false"}
+                    data-make-public={galleryText.makePublic}
+                    data-make-private={galleryText.makePrivate}
+                    data-label-public={galleryText.visibilityPublic}
+                    data-label-private={galleryText.visibilityPrivate}
+                    data-success-message={galleryText.visibilitySaved}
+                    data-error-message={galleryText.visibilityError}
+                  >
+                    {item.isPublic ? galleryText.makePrivate : galleryText.makePublic}
+                  </button>
+                </div>
+
+                <div class="bg-base-200/80 rounded-2xl p-3 h-48 overflow-auto border border-base-300/60 shadow-inner">
                   <div class="w-full h-full" set:html={item.code_svg} />
                 </div>
-                {
-                  (() => {
-                    const svgBase64 = Buffer.from(item.code_svg ?? "", "utf-8").toString("base64");
-                    const safeName = item.name?.trim() || "svg";
-                    return (
-                      <div class="flex flex-col sm:flex-row gap-2">
-                        <a class="btn btn-outline flex-1" href={`/gallery/${item.id}`}>
-                          {galleryText.open}
-                        </a>
-                        <button
-                          type="button"
-                          class="btn btn-primary flex-1"
-                          data-download-svg
-                          data-svg={svgBase64}
-                          data-name={safeName}
-                        >
-                          {galleryText.download}
-                        </button>
-                      </div>
-                    );
-                  })()
-                }
+
+                <div class="flex flex-col sm:flex-row gap-3">
+                  <a class="btn btn-outline flex-1" href={`/gallery/${item.id}`}>
+                    {galleryText.open}
+                  </a>
+                  <button
+                    type="button"
+                    class="btn btn-primary flex-1"
+                    data-download-svg
+                    data-svg={item.svgBase64}
+                    data-name={item.safeName}
+                  >
+                    {galleryText.download}
+                  </button>
+                </div>
               </div>
             </article>
           ))
         ) : (
-          <div class="col-span-full text-center text-base-content/70">
-            {galleryText.empty}
+          <div class="col-span-full text-center text-base-content/70 space-y-3">
+            <p>{galleryText.empty}</p>
+            <a class="btn btn-primary" href="/generator">
+              {galleryText.backToGenerator}
+            </a>
           </div>
         )
       }
     </div>
+  </div>
   </section>
 </Layout>
 
@@ -120,6 +177,72 @@ if (user?.id) {
         anchor.click();
         anchor.remove();
         URL.revokeObjectURL(url);
+      });
+    });
+  })();
+</script>
+
+<script>
+  //@ts-nocheck
+  (function () {
+    const toggleButtons = document.querySelectorAll("[data-toggle-public]");
+    if (!toggleButtons.length) return;
+
+    toggleButtons.forEach((button) => {
+      button.addEventListener("click", async () => {
+        const id = button.dataset.id;
+        if (!id) return;
+
+        const isPublic = button.dataset.public === "true";
+        const makePublic = button.dataset.makePublic || "Publish";
+        const makePrivate = button.dataset.makePrivate || "Make private";
+        const labelPublic = button.dataset.labelPublic || "Public";
+        const labelPrivate = button.dataset.labelPrivate || "Private";
+        const successMessage = button.dataset.successMessage || "Visibility updated.";
+        const errorMessage = button.dataset.errorMessage || "Failed to update visibility.";
+
+        const card = button.closest("[data-gallery-card]");
+        const label = card?.querySelector("[data-visibility-label]");
+
+        button.disabled = true;
+        button.classList.add("loading");
+
+        try {
+          const res = await fetch("/api/updateSVG", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, is_public: !isPublic }),
+          });
+
+          if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || res.statusText);
+          }
+
+          const data = await res.json().catch(() => null);
+          if (!data?.success) {
+            throw new Error(data?.error || "");
+          }
+
+          const nextIsPublic = !isPublic;
+          button.dataset.public = String(nextIsPublic);
+          button.textContent = nextIsPublic ? makePrivate : makePublic;
+
+          if (label) {
+            label.textContent = nextIsPublic ? labelPublic : labelPrivate;
+            label.classList.toggle("badge-success", nextIsPublic);
+            label.classList.toggle("badge-ghost", !nextIsPublic);
+          }
+
+          alert(successMessage);
+        } catch (error) {
+          console.error("Failed to toggle visibility", error);
+          const appendMessage = error?.message ? ` ${error.message}` : "";
+          alert(`${errorMessage}${appendMessage}`);
+        } finally {
+          button.disabled = false;
+          button.classList.remove("loading");
+        }
       });
     });
   })();

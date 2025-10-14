@@ -14,7 +14,7 @@ export async function POST({ request, locals }) {
         });
     }
 
-    const { name, code_svg, chat_history, user } = payload ?? {};
+    const { name, code_svg, chat_history, user, is_public } = payload ?? {};
     const sessionUserId = locals?.user?.id;
     const userId = sessionUserId ?? user;
 
@@ -52,10 +52,12 @@ export async function POST({ request, locals }) {
         name,
         code_svg,
         chat_history: chat_history ?? "[]",
-        users: userId,
+        owner: userId,
+        is_public: Boolean(is_public),
+        likes_count: 0,
     };
 
-    console.log("Received data to save:", data);
+    console.log("Received data to save:", { ...data, code_svg: "[omitted]" });
 
     try {
         const record = await pb.collection(Collections.Svg).create(data);

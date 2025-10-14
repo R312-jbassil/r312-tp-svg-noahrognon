@@ -1,0 +1,27 @@
+<svg width="1400" height="360" viewBox="0 0 1400 360" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fond -->
+  
+
+  <!-- Groupe typographique -->
+  <!-- Astuce : on utilise une police de style “cinéma” (Bebas Neue-like).
+       Si elle n'est pas installée, fallback vers des sans-serifs condensées. -->
+  <g transform="translate(80,260)">
+    <text
+      font-family="Bebas Neue, Impact, Haettenschweiler, 'Arial Narrow Bold', 'Oswald', 'Bahnschrift Condensed', sans-serif"
+      font-size="220"
+      font-weight="700"
+      letter-spacing="10"
+      fill="#FFFFFF">
+      <!-- SÉ -->
+      <tspan>SÉ</tspan>
+      <!-- Q rouge -->
+      <tspan fill="#B0121B">Q</tspan>
+      <!-- UENCIA -->
+      <tspan>UENCIA</tspan>
+    </text>
+
+    <!-- Petite retouche de la queue du Q pour un rendu plus “affiche de film” -->
+    <!-- On dessine une barre diagonale qui part du Q pour renforcer la signature -->
+    
+  </g>
+</svg>

@@ -6,7 +6,8 @@ export const ui = {
     nav: {
       home: 'Home',
       generator: 'Generator',
-      gallery: 'Gallery',
+      myGallery: 'My Gallery',
+      publicGallery: 'Public Gallery',
       profile: 'Profile',
       language: 'Language',
       english: 'English',
@@ -60,9 +61,41 @@ export const ui = {
       title: 'Welcome to SVG Generator',
       description: 'Create and render SVGs from prompts.',
       generatorButton: 'Go to SVG Generator',
-      galleryButton: 'Library',
+      myGalleryButton: 'My Library',
+      publicGalleryButton: 'Public Gallery',
       loginButton: 'Log In',
       logoutButton: 'Log Out',
+      hero: {
+        eyebrow: 'Creative Studio',
+        headline: 'Design striking SVGs at the speed of your imagination',
+        subheadline:
+          'Describe what you picture, tweak the details with conversational edits, then share or download your vector artwork instantly.',
+        primaryCta: 'Launch the generator',
+        secondaryCta: 'Browse public gallery',
+        tertiaryCta: 'View my gallery',
+      },
+      features: [
+        {
+          title: 'Prompt to vector',
+          description:
+            'Turn natural-language ideas into clean SVG code with layers ready for animation or export.',
+        },
+        {
+          title: 'Conversational edits',
+          description:
+            'Iterate quickly by chatting with the assistant—adjust colors, shapes, and composition in seconds.',
+        },
+        {
+          title: 'Shareable galleries',
+          description:
+            'Publish your creations to the community, gather reactions, and keep your private collection in sync.',
+        },
+      ],
+      stats: [
+        { label: 'SVG generated', value: '1k+' },
+        { label: 'Active creators', value: '250+' },
+        { label: 'Average edit time', value: '< 30s' },
+      ],
     },
     generator: {
       pageTitle: 'SVG Generator',
@@ -77,7 +110,7 @@ export const ui = {
         nameLabel: 'SVG Name',
         namePlaceholder: 'My illustration',
         save: 'Save to Library',
-        galleryLink: 'Gallery',
+        galleryLink: 'My Gallery',
       },
       preview: {
         title: 'Preview',
@@ -101,16 +134,36 @@ export const ui = {
       },
     },
     gallery: {
-      title: 'SVG Gallery',
+      title: 'My Gallery',
+      subtitle: 'Curate your creations, adjust their visibility and download them any time.',
       backToGenerator: 'Back to Generator',
       open: 'Open',
       download: 'Download',
       empty: 'No SVG saved yet.',
+      visibilityPublic: 'Public',
+      visibilityPrivate: 'Private',
+      makePublic: 'Publish',
+      makePrivate: 'Make private',
+      visibilitySaved: 'Visibility updated.',
+      visibilityError: 'Failed to update visibility.',
+      viewPublicGallery: 'Browse the public gallery',
+      likesLabel: 'likes',
+    },
+    publicGallery: {
+      title: 'Public Gallery',
+      description: 'Discover creations shared by the community.',
+      backToMyGallery: 'Back to My Gallery',
+      like: 'Like',
+      unlike: 'Unlike',
+      likeError: 'Unable to update like.',
+      empty: 'No public SVG yet.',
+      createdBy: 'by',
+      unknownAuthor: 'Unknown creator',
     },
     galleryDetail: {
       title: 'Edit SVG',
       idLabel: 'ID',
-      backToGallery: 'Back to Gallery',
+      backToGallery: 'Back to My Gallery',
       backToGenerator: 'Generate a New SVG',
       previewTitle: 'Preview',
       historyTitle: 'Chat History',
@@ -151,7 +204,8 @@ export const ui = {
     nav: {
       home: 'Accueil',
       generator: 'Generateur',
-      gallery: 'Galerie',
+      myGallery: 'Ma galerie',
+      publicGallery: 'Galerie publique',
       profile: 'Profil',
       language: 'Langue',
       english: 'English',
@@ -205,9 +259,41 @@ export const ui = {
       title: 'Bienvenue sur le generateur SVG',
       description: 'Creez et affichez des SVG a partir de prompts.',
       generatorButton: 'Aller au generateur SVG',
-      galleryButton: 'Bibliotheque',
+      myGalleryButton: 'Ma bibliotheque',
+      publicGalleryButton: 'Galerie publique',
       loginButton: 'Se connecter',
       logoutButton: 'Se deconnecter',
+      hero: {
+        eyebrow: 'Studio Creatif',
+        headline: 'Imagine ton SVG, nous le dessinons pour toi',
+        subheadline:
+          'Decris ce que tu veux voir, affine le resultat avec des retouches en conversation et exporte ton illustration instantanement.',
+        primaryCta: 'Lancer le generateur',
+        secondaryCta: 'Explorer la galerie publique',
+        tertiaryCta: 'Voir ma galerie',
+      },
+      features: [
+        {
+          title: 'Du texte au vectoriel',
+          description:
+            'Transforme une idee en code SVG propre, pret pour l animation ou l exportation.',
+        },
+        {
+          title: 'Retouches en dialogue',
+          description:
+            'Modifie couleurs, formes et composition en quelques secondes en discutant avec l assistant.',
+        },
+        {
+          title: 'Galeries partageables',
+          description:
+            'Publie tes creations a la communaute, collecte des reactions et garde ta collection privee a jour.',
+        },
+      ],
+      stats: [
+        { label: 'SVG generes', value: '1k+' },
+        { label: 'Createurs actifs', value: '250+' },
+        { label: 'Temps moyen par edit', value: '< 30s' },
+      ],
     },
     generator: {
       pageTitle: 'Generateur SVG',
@@ -222,7 +308,7 @@ export const ui = {
         nameLabel: 'Nom du SVG',
         namePlaceholder: 'Mon illustration',
         save: 'Enregistrer dans la bibliotheque',
-        galleryLink: 'Galerie',
+        galleryLink: 'Ma galerie',
       },
       preview: {
         title: 'Apercu',
@@ -246,16 +332,36 @@ export const ui = {
       },
     },
     gallery: {
-      title: 'Galerie des SVG',
+      title: 'Ma galerie',
+      subtitle: 'Organise tes creations, gere leur visibilite et telecharge-les quand tu veux.',
       backToGenerator: 'Retour au generateur',
       open: 'Ouvrir',
       download: 'Telecharger',
       empty: 'Aucun SVG enregistre pour le moment.',
+      visibilityPublic: 'Publique',
+      visibilityPrivate: 'Privee',
+      makePublic: 'Publier',
+      makePrivate: 'Rendre prive',
+      visibilitySaved: 'Visibilite mise a jour.',
+      visibilityError: 'Impossible de mettre a jour la visibilite.',
+      viewPublicGallery: 'Parcourir la galerie publique',
+      likesLabel: 'likes',
+    },
+    publicGallery: {
+      title: 'Galerie publique',
+      description: 'Decouvre les creations partagees par la communaute.',
+      backToMyGallery: 'Retour a ma galerie',
+      like: 'Like',
+      unlike: 'Retirer le like',
+      likeError: 'Impossible de mettre a jour le like.',
+      empty: 'Aucun SVG public pour le moment.',
+      createdBy: 'par',
+      unknownAuthor: 'Auteur inconnu',
     },
     galleryDetail: {
       title: 'Edition du SVG',
       idLabel: 'ID',
-      backToGallery: 'Retour a la galerie',
+      backToGallery: 'Retour a ma galerie',
       backToGenerator: 'Generer un nouveau SVG',
       previewTitle: 'Apercu',
       historyTitle: 'Historique de chat',

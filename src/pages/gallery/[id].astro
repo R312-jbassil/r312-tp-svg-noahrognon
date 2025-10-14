@@ -1,4 +1,4 @@
-﻿---
+---
 import Layout from "../../layouts/Layout.astro";
 import pb from "../../utils/pb";
 import { Collections, type SvgRecord, type ChatMessage } from "../../utils/pocketbase-types";
@@ -6,6 +6,7 @@ import { ui } from "../../i18n/ui.js";
 const user = Astro.locals.user;
 const locale = Astro.locals.lang === 'fr' || Astro.locals.lang === 'en' ? Astro.locals.lang : 'en';
 const galleryUi = ui[locale].galleryDetail;
+const galleryListUi = ui[locale].gallery;
 const apiUi = ui[locale].api;
 const galleryDownloadLabel = ui[locale].gallery.download;
 
@@ -16,9 +17,12 @@ let loadError = "";
 
 if (id && user?.id) {
   try {
-    const record = await pb
-      .collection(Collections.Svg)
-      .getFirstListItem(`id = "${id}" && users = "${user.id}"`);
+    const record = await pb.collection(Collections.Svg).getOne(id);
+    const recordOwner = record?.owner ?? record?.users;
+    if (recordOwner !== user.id) {
+      throw new Error("Forbidden");
+    }
+
     svg = record as SvgRecord;
 
     const rawHistory = record?.chat_history;
@@ -45,6 +49,14 @@ if (id && user?.id) {
   loadError = galleryUi.errors.loadFailed;
 }
 
+const isPublic = Boolean(svg?.is_public);
+const visibilityLabel = isPublic
+  ? galleryListUi.visibilityPublic
+  : galleryListUi.visibilityPrivate;
+const likesCount =
+  typeof svg?.likes_count === "number" && !Number.isNaN(svg?.likes_count)
+    ? svg.likes_count
+    : 0;
 const chatHistoryJson = JSON.stringify(chatHistory);
 const svgMarkup = svg?.code_svg || "";
 const svgBase64 = Buffer.from(svgMarkup, "utf-8").toString("base64");
@@ -52,284 +64,304 @@ const downloadName = svg?.name?.trim() || "svg";
 ---
 
 <Layout title={galleryUi.title} locale={locale}>
-  <section class="max-w-6xl mx-auto px-6 py-10 space-y-6">
-    <header class="flex items-center justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-3xl font-bold">{galleryUi.title}</h1>
-        {svg?.id ? (
-          <p class="text-base-content/70">{galleryUi.idLabel}: {svg.id}</p>
-        ) : null}
-      </div>
-      <div class="flex gap-2">
-        <a class="btn" href="/gallery">{galleryUi.backToGallery}</a>
-        <a class="btn btn-primary" href="/generator">{galleryUi.backToGenerator}</a>
-      </div>
-    </header>
-
-    {loadError ? (
-      <div class="alert alert-error">{loadError}</div>
-    ) : (
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[28rem]">
-        <div class="card bg-base-100 shadow border border-base-300">
-          <div class="card-body space-y-4">
-            <h2 class="card-title">{galleryUi.previewTitle}</h2>
-            <div class="flex justify-end">
-              <button
-                type="button"
-                class="btn btn-primary btn-sm"
-                data-download-svg
-                data-name={downloadName}
-                data-svg={svgBase64}
+  <section class="max-w-6xl mx-auto px-6 py-12">
+    <div class="rounded-3xl bg-base-100/70 backdrop-blur-lg border border-base-200/60 shadow-xl px-6 sm:px-10 py-10 space-y-8">
+      <header class="flex items-center justify-between gap-6 flex-wrap">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight">{galleryUi.title}</h1>
+          {svg?.id ? (
+            <p class="text-base-content/70 text-sm sm:text-base mt-1">
+              {galleryUi.idLabel}: {svg.id}
+            </p>
+          ) : null}
+          {svg ? (
+            <div class="mt-3 flex items-center gap-3 text-sm text-base-content/70">
+              <span
+                class={`badge ${isPublic ? "badge-success" : "badge-ghost"} uppercase tracking-wide badge-lg`}
               >
-                {galleryDownloadLabel}
-              </button>
+                {visibilityLabel}
+              </span>
+              <span class="font-semibold text-base-content">{likesCount}</span>
+              <span>{galleryListUi.likesLabel}</span>
             </div>
-            <div
-              id="svg-preview"
-              class="bg-base-200 rounded-box p-4 min-h-[24rem] overflow-auto"
-              set:html={svgMarkup}
-            ></div>
-          </div>
+          ) : null}
         </div>
+        <div class="flex gap-3 flex-wrap">
+          <a class="btn btn-outline btn-sm sm:btn-md" href="/gallery">
+            {galleryUi.backToGallery}
+          </a>
+          <a class="btn btn-primary btn-sm sm:btn-md" href="/generator">
+            {galleryUi.backToGenerator}
+          </a>
+        </div>
+      </header>
 
-        <div class="card bg-base-100 shadow border border-base-300 relative">
-          <div class="card-body pb-24">
-            <h2 class="card-title">{galleryUi.historyTitle}</h2>
-            <div id="chat-history" class="flex flex-col gap-4 w-full mb-4 overflow-y-auto flex-grow">
-              {
-                chatHistory.length > 0 ? (
-                  chatHistory.map((msg) => (
-                    <div class={`chat ${msg.role === "user" ? "chat-start" : "chat-end"}`}>
-                      <div class={`chat-bubble ${msg.role === "user" ? "bg-primary text-primary-content" : "bg-secondary text-secondary-content"}`}>
-                        <pre>{msg.content}</pre>
+      {loadError ? (
+        <div class="alert alert-error">{loadError}</div>
+      ) : (
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[28rem]">
+          <div class="card shadow-lg border border-primary/20 bg-gradient-to-br from-base-100/95 via-primary/10 to-secondary/10">
+            <div class="card-body space-y-5">
+              <div class="flex items-center justify-between">
+                <h2 class="card-title">{galleryUi.previewTitle}</h2>
+                <button
+                  type="button"
+                  class="btn btn-outline btn-primary btn-sm"
+                  data-download-svg
+                  data-name={downloadName}
+                  data-svg={svgBase64}
+                >
+                  {galleryDownloadLabel}
+                </button>
+              </div>
+              <div
+                id="svg-preview"
+                class="bg-base-200/80 rounded-2xl p-4 min-h-[24rem] overflow-auto border border-base-300/60 shadow-inner"
+                set:html={svgMarkup}
+              ></div>
+            </div>
+          </div>
+
+          <div class="card shadow-lg border border-primary/20 bg-gradient-to-br from-base-100/95 via-secondary/10 to-primary/10 relative">
+            <div class="card-body pb-24 space-y-4">
+              <h2 class="card-title">{galleryUi.historyTitle}</h2>
+              <div id="chat-history" class="flex flex-col gap-4 w-full mb-2 overflow-y-auto flex-grow max-h-[24rem]">
+                {
+                  chatHistory.length > 0 ? (
+                    chatHistory.map((msg) => (
+                      <div class={`chat ${msg.role === "user" ? "chat-start" : "chat-end"}`}>
+                        <div class={`chat-bubble ${msg.role === "user" ? "bg-primary text-primary-content" : "bg-secondary text-secondary-content"}`}>
+                          <pre>{msg.content}</pre>
+                        </div>
+                        <div class="chat-footer opacity-60 text-xs mt-1">{msg.role}</div>
                       </div>
-                      <div class="chat-footer opacity-60 text-xs mt-1">{msg.role}</div>
-                    </div>
-                  ))
-                ) : (
-                  <span class="text-error">{galleryUi.emptyHistory}</span>
-                )
-              }
+                    ))
+                  ) : (
+                    <span class="text-error">{galleryUi.emptyHistory}</span>
+                  )
+                }
+              </div>
             </div>
+
+            <form
+              id="input-prompt-form"
+              class="flex flex-col gap-3 w-full absolute bottom-0 left-0 right-0 bg-base-100/90 border-t border-base-200/70 px-4 py-4 backdrop-blur-lg"
+              method="post"
+              autocomplete="off"
+            >
+              <input type="hidden" name="history" value={chatHistoryJson} />
+              <input type="hidden" name="id" value={svg?.id} />
+              <input type="hidden" name="currentSvg" value={svgMarkup} />
+              <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <input
+                  id="prompt-input"
+                  name="editPrompt"
+                  type="text"
+                  class="input input-bordered flex-grow"
+                  placeholder={galleryUi.promptPlaceholder}
+                />
+                <button class="btn btn-primary sm:w-auto w-full" type="submit">
+                  {galleryUi.editButton}
+                </button>
+              </div>
+            </form>
           </div>
-
-          <form
-            id="input-prompt-form"
-            class="flex flex-col gap-2 w-full absolute bottom-0 left-0 right-0 bg-base-300 p-4"
-            method="post"
-            autocomplete="off"
-          >
-            <input type="hidden" name="history" value={chatHistoryJson} />
-            <input type="hidden" name="id" value={svg?.id} />
-            <input type="hidden" name="currentSvg" value={svgMarkup} />
-            <div class="flex items-center gap-2">
-              <input
-                id="prompt-input"
-                name="editPrompt"
-                type="text"
-                class="input flex-grow"
-                placeholder={galleryUi.promptPlaceholder}
-              />
-              <button class="btn btn-primary" type="submit">{galleryUi.editButton}</button>
-            </div>
-          </form>
         </div>
-      </div>
-    )}
+      )}
+    </div>
   </section>
+</Layout>
 
-  <script define:vars={{ galleryText: galleryUi, apiText: apiUi }}>
-    //@ts-nocheck
+<script define:vars={{ galleryText: galleryUi, apiText: apiUi }}>
+  //@ts-nocheck
 
-    (function () {
-      const downloadButtons = document.querySelectorAll("[data-download-svg]");
-      if (downloadButtons.length > 0) {
-        downloadButtons.forEach((button) => {
-          button.addEventListener("click", () => {
-            const svgBase64 = button.getAttribute("data-svg") || "";
-            const nameAttr = button.getAttribute("data-name") || "svg";
+  (function () {
+    const downloadButtons = document.querySelectorAll("[data-download-svg]");
+    if (downloadButtons.length > 0) {
+      downloadButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const svgBase64 = button.getAttribute("data-svg") || "";
+          const nameAttr = button.getAttribute("data-name") || "svg";
 
-            if (!svgBase64) {
-              console.warn("Missing SVG data for download button.");
-              return;
-            }
+          if (!svgBase64) {
+            console.warn("Missing SVG data for download button.");
+            return;
+          }
 
-            let svgContent = "";
-            try {
-              svgContent = atob(svgBase64);
-            } catch (error) {
-              console.error("Failed to decode SVG payload", error);
-              return;
-            }
+          let svgContent = "";
+          try {
+            svgContent = atob(svgBase64);
+          } catch (error) {
+            console.error("Failed to decode SVG payload", error);
+            return;
+          }
 
-            const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
+          const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
 
-            const anchor = document.createElement("a");
-            const safeName = nameAttr.replace(/[^a-z0-9_\-]+/gi, "_") || "svg";
-            anchor.href = url;
-            anchor.download = `${safeName}.svg`;
-            document.body.appendChild(anchor);
-            anchor.click();
-            anchor.remove();
-            URL.revokeObjectURL(url);
-          });
+          const anchor = document.createElement("a");
+          const safeName = nameAttr.replace(/[^a-z0-9_\-]+/gi, "_") || "svg";
+          anchor.href = url;
+          anchor.download = `${safeName}.svg`;
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          URL.revokeObjectURL(url);
         });
-      }
+      });
+    }
 
-      const form = document.getElementById("input-prompt-form");
-      if (!form) {
-        return;
-      }
+    const form = document.getElementById("input-prompt-form");
+    const promptInput = document.getElementById("prompt-input");
+    const hiddenHistory = form?.querySelector('input[name="history"]');
+    const hiddenId = form?.querySelector('input[name="id"]');
+    const hiddenCurrentSvg = form?.querySelector('input[name="currentSvg"]');
+    const chatHistoryElement = document.getElementById("chat-history");
+    const svgPreview = document.getElementById("svg-preview");
 
-      const svgPreview = document.getElementById("svg-preview");
-      const chatHistoryElement = document.getElementById("chat-history");
-      const promptInput = document.getElementById("prompt-input");
-      const hiddenHistory = form.querySelector('input[name="history"]');
-      const hiddenId = form.querySelector('input[name="id"]');
-      const hiddenCurrentSvg = form.querySelector('input[name="currentSvg"]');
+    if (!form || !promptInput || !hiddenHistory || !hiddenId || !hiddenCurrentSvg) {
+      return;
+    }
 
-      if (!hiddenHistory || !hiddenId) {
-        return;
-      }
-
-      const loadingSpinner = '<span class="loading loading-ring loading-xl"></span>';
-
-      let history = [];
-      try {
-        history = hiddenHistory.value ? JSON.parse(hiddenHistory.value) : [];
-      } catch (error) {
-        console.warn("Invalid history payload", error);
+    let history = [];
+    try {
+      history = JSON.parse(hiddenHistory.value || "[]");
+      if (!Array.isArray(history)) {
         history = [];
       }
+    } catch {
+      history = [];
+    }
 
-      function scrollChatToBottom() {
-        if (!chatHistoryElement) return;
-        chatHistoryElement.scrollTop = chatHistoryElement.scrollHeight;
-      }
+    const loadingSpinner =
+      '<div class="flex items-center justify-center py-10"><span class="loading loading-ring loading-lg text-primary"></span></div>';
 
-      function appendChatBubble(role, content) {
-        if (!chatHistoryElement) return;
-        const wrapper = document.createElement("div");
-        wrapper.className = `chat ${role === "user" ? "chat-start" : "chat-end"}`;
+    function scrollChatToBottom() {
+      if (!chatHistoryElement) return;
+      chatHistoryElement.scrollTop = chatHistoryElement.scrollHeight;
+    }
 
-        const bubble = document.createElement("div");
-        bubble.className = `chat-bubble ${role === "user" ? "bg-primary text-primary-content" : "bg-secondary text-secondary-content"}`;
-        const pre = document.createElement("pre");
-        pre.textContent = content;
-        bubble.appendChild(pre);
+    function appendChatBubble(role, content) {
+      if (!chatHistoryElement) return;
+      const wrapper = document.createElement("div");
+      wrapper.className = `chat ${role === "user" ? "chat-start" : "chat-end"}`;
 
-        const footer = document.createElement("div");
-        footer.className = "chat-footer opacity-60 text-xs mt-1";
-        footer.textContent = role;
+      const bubble = document.createElement("div");
+      bubble.className = `chat-bubble ${role === "user" ? "bg-primary text-primary-content" : "bg-secondary text-secondary-content"}`;
+      const pre = document.createElement("pre");
+      pre.textContent = content;
+      bubble.appendChild(pre);
 
-        wrapper.appendChild(bubble);
-        wrapper.appendChild(footer);
-        chatHistoryElement.appendChild(wrapper);
-        scrollChatToBottom();
-      }
+      const footer = document.createElement("div");
+      footer.className = "chat-footer opacity-60 text-xs mt-1";
+      footer.textContent = role;
 
-      async function generateSVG(messages) {
-        const res = await fetch("/api/generateSVG", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages }),
-        });
+      wrapper.appendChild(bubble);
+      wrapper.appendChild(footer);
+      chatHistoryElement.appendChild(wrapper);
+      scrollChatToBottom();
+    }
 
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`${apiText.requestFailed} ${res.status} ${errorText}`);
-        }
-
-        const data = await res.json();
-        return data.svg;
-      }
-
-      async function updateSvg(updatedData) {
-        const res = await fetch("/api/updateSVG", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedData),
-        });
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(errorText || galleryText.errors.updateFailed);
-        }
-        return res.json();
-      }
-
-      form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-
-        const promptContent = (promptInput?.value || "").trim();
-        if (!promptContent) {
-          return;
-        }
-
-        const userPrompt = { role: "user", content: promptContent };
-        history.push(userPrompt);
-        appendChatBubble(userPrompt.role, userPrompt.content);
-        hiddenHistory.value = JSON.stringify(history);
-        if (promptInput) {
-          promptInput.value = "";
-        }
-
-        const previousSvg = svgPreview ? svgPreview.innerHTML : "";
-        if (svgPreview) {
-          svgPreview.innerHTML += loadingSpinner;
-        }
-
-        try {
-          let aiResponse = await generateSVG(history);
-          if (!aiResponse || typeof aiResponse !== "object") {
-            aiResponse = { role: "assistant", content: "" };
-          }
-
-          const svgMatch = aiResponse.content?.match(/<svg[\s\S]*?<\/svg>/i);
-          aiResponse.content = svgMatch ? svgMatch[0] : "";
-          appendChatBubble(aiResponse.role, aiResponse.content || galleryText.misc.emptyResponse);
-
-          if (!aiResponse.content) {
-            throw new Error(galleryText.errors.modelEmpty);
-          }
-
-          history.push(aiResponse);
-          hiddenHistory.value = JSON.stringify(history);
-
-          if (svgPreview) {
-            svgPreview.innerHTML = aiResponse.content;
-          }
-          if (hiddenCurrentSvg) {
-            hiddenCurrentSvg.value = aiResponse.content;
-          }
-
-          const updatePayload = {
-            id: hiddenId.value,
-            code_svg: aiResponse.content,
-            chat_history: hiddenHistory.value,
-          };
-
-          const response = await updateSvg(updatePayload);
-          if (!response?.success) {
-            throw new Error(response?.error || galleryText.errors.updateFailed);
-          }
-
-          alert(galleryText.alerts.updateSuccess);
-        } catch (error) {
-          console.error(error);
-          if (svgPreview) {
-            svgPreview.innerHTML = previousSvg;
-          }
-          if (chatHistoryElement && chatHistoryElement.lastElementChild) {
-            chatHistoryElement.removeChild(chatHistoryElement.lastElementChild);
-          }
-          if (history.length > 0) {
-            history.pop();
-            hiddenHistory.value = JSON.stringify(history);
-          }
-          alert(`${galleryText.alerts.updateFailure} ${error?.message || galleryText.errors.updateFailed}`);
-        }
+    async function generateSVG(messages) {
+      const res = await fetch("/api/generateSVG", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages }),
       });
-    })();
-  </script>
-</Layout>
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`${apiText.requestFailed} ${res.status} ${errorText}`);
+      }
+
+      const data = await res.json();
+      return data.svg;
+    }
+
+    async function updateSvg(updatedData) {
+      const res = await fetch("/api/updateSVG", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedData),
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || galleryText.errors.updateFailed);
+      }
+      return res.json();
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const promptContent = (promptInput?.value || "").trim();
+      if (!promptContent) {
+        return;
+      }
+
+      const userPrompt = { role: "user", content: promptContent };
+      history.push(userPrompt);
+      appendChatBubble(userPrompt.role, userPrompt.content);
+      hiddenHistory.value = JSON.stringify(history);
+      if (promptInput) {
+        promptInput.value = "";
+      }
+
+      const previousSvg = svgPreview ? svgPreview.innerHTML : "";
+      if (svgPreview) {
+        svgPreview.innerHTML += loadingSpinner;
+      }
+
+      try {
+        let aiResponse = await generateSVG(history);
+        if (!aiResponse || typeof aiResponse !== "object") {
+          aiResponse = { role: "assistant", content: "" };
+        }
+
+        const svgMatch = aiResponse.content?.match(/<svg[\s\S]*?<\/svg>/i);
+        aiResponse.content = svgMatch ? svgMatch[0] : "";
+        appendChatBubble(aiResponse.role, aiResponse.content || galleryText.misc.emptyResponse);
+
+        if (!aiResponse.content) {
+          throw new Error(galleryText.errors.modelEmpty);
+        }
+
+        history.push(aiResponse);
+        hiddenHistory.value = JSON.stringify(history);
+
+        if (svgPreview) {
+          svgPreview.innerHTML = aiResponse.content;
+        }
+        if (hiddenCurrentSvg) {
+          hiddenCurrentSvg.value = aiResponse.content;
+        }
+
+        const updatePayload = {
+          id: hiddenId.value,
+          code_svg: aiResponse.content,
+          chat_history: hiddenHistory.value,
+        };
+
+        const response = await updateSvg(updatePayload);
+        if (!response?.success) {
+          throw new Error(response?.error || galleryText.errors.updateFailed);
+        }
+
+        alert(galleryText.alerts.updateSuccess);
+      } catch (error) {
+        console.error(error);
+        if (svgPreview) {
+          svgPreview.innerHTML = previousSvg;
+        }
+        if (chatHistoryElement && chatHistoryElement.lastElementChild) {
+          chatHistoryElement.removeChild(chatHistoryElement.lastElementChild);
+        }
+        if (history.length > 0) {
+          history.pop();
+          hiddenHistory.value = JSON.stringify(history);
+        }
+        alert(`${galleryText.alerts.updateFailure} ${error?.message || galleryText.errors.updateFailed}`);
+      }
+    });
+  })();
+</script>
