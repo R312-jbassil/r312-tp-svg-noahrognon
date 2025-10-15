@@ -1,8 +1,12 @@
-import PocketBase from 'pocketbase';
+import PocketBase from 'pocketbase'
 
-const pocketbaseUrl = import.meta.env.PB_URL ?? 'http://127.0.0.1:8090';
+let path = ''
 
-const pb = new PocketBase(pocketbaseUrl);
+if (import.meta.env.MODE === 'development') {
+    path = 'http://localhost:8090' // en local
+} else {
+    path = 'http://localhost:8088' // sur ton VPS
+}
 
-export default pb;
-
+const pb = new PocketBase(path)
+export default pb
