@@ -13559,7 +13559,7 @@ namespace core {
    *   - *:create
    *   - /
    *   - /api
-   *   - POST /api/collections/
+   *   - POST /apis/collections/
    * ```
    */
   label: string

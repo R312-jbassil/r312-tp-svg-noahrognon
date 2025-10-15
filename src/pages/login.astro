@@ -270,7 +270,7 @@ if (Astro.locals.user) {
         event.preventDefault();
         const formData = new FormData(form);
 
-        const response = await fetch('/api/login', {
+        const response = await fetch('/apis/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

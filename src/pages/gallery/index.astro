@@ -208,7 +208,7 @@ const galleryItems = svgItems.map((item) => ({
         button.classList.add("loading");
 
         try {
-          const res = await fetch("/api/updateSVG", {
+          const res = await fetch("/apis/updateSVG", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id, is_public: !isPublic }),

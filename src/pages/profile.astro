@@ -291,7 +291,7 @@ if (user?.created) {
       }
 
       try {
-        const response = await fetch("/api/profile/details", {
+        const response = await fetch("/apis/profile/details", {
           method: "POST",
           body: payload,
         });
@@ -366,7 +366,7 @@ if (user?.created) {
       }
 
       try {
-        const response = await fetch("/api/profile/password", {
+        const response = await fetch("/apis/profile/password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),

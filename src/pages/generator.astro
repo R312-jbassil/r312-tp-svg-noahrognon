@@ -104,7 +104,7 @@ const apiUi = ui[locale].api;
     const generationErrorHtml = `<span class="text-error">${messages.generationErrorLabel}</span>`;
 
     async function generateSVG(messagesPayload) {
-      const res = await fetch("/api/generateSVG", {
+      const res = await fetch("/apis/generateSVG", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: messagesPayload }),
@@ -259,7 +259,7 @@ const apiUi = ui[locale].api;
     }
 
     async function saveSvg(params) {
-      const res = await fetch("/api/saveSVG", {
+      const res = await fetch("/apis/saveSVG", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(params),

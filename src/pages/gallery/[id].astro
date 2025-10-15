@@ -263,7 +263,7 @@ const downloadName = svg?.name?.trim() || "svg";
     }
 
     async function generateSVG(messages) {
-      const res = await fetch("/api/generateSVG", {
+      const res = await fetch("/apis/generateSVG", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages }),
@@ -279,7 +279,7 @@ const downloadName = svg?.name?.trim() || "svg";
     }
 
     async function updateSvg(updatedData) {
-      const res = await fetch("/api/updateSVG", {
+      const res = await fetch("/apis/updateSVG", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedData),

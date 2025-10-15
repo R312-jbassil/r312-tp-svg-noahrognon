@@ -1,5 +1,5 @@
 import pb from '../../utils/pb.js';
-import { Collections } from '../../utils/pocketbase-types';
+import { Collections } from '../../utils/pocketbase-types.js';
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
 const MAX_AVATAR_SIZE = 3 * 1024 * 1024; // 3 MB

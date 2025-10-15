@@ -1,7 +1,7 @@
 
 import pb from '../utils/pb.js';
 
-const publicApiRoutes = ['/api/login', '/api/signup'];
+const publicApiRoutes = ['/apis/login', '/apis/signup'];
 const publicPages = new Set(['/login', '/signup', '/']);
 
 export const onRequest = async (context, next) => {
@@ -16,7 +16,7 @@ export const onRequest = async (context, next) => {
 
     const pathname = context.url.pathname;
 
-    if (pathname.startsWith('/api/')) {
+    if (pathname.startsWith('/apis/')) {
         if (!context.locals.user && !publicApiRoutes.includes(pathname)) {
             return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
         }
