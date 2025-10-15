@@ -3,7 +3,7 @@ import pb from "../../../utils/pb";
 import { Collections } from "../../../utils/pocketbase-types";
 
 const jsonHeaders = { "Content-Type": "application/json" };
-const pocketbaseUrl = import.meta.env.PB_URL ?? "http://127.0.0.1:8090";
+const pocketbaseUrl = import.meta.env.PB_URL ?? "http://127.0.0.1:8088";
 
 export const POST = async ({ request, locals, cookies }) => {
     if (!locals?.user) {
